@@ -1,0 +1,10 @@
+{%- comment -%} Renders a reading-depth badge. Param: grade {%- endcomment -%}
+{%- case include.grade -%}
+{%- when "A" -%}{%- assign gclass = "a" -%}
+{%- when "A-" -%}{%- assign gclass = "am" -%}
+{%- when "B+" -%}{%- assign gclass = "bp" -%}
+{%- when "B" -%}{%- assign gclass = "b" -%}
+{%- when "C" -%}{%- assign gclass = "c" -%}
+{%- else -%}{%- assign gclass = "x" -%}
+{%- endcase -%}
+<span class="rl-badge rl-badge--{{ gclass }}">{{ include.grade }}</span>

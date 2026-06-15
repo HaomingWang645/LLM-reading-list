@@ -1,0 +1,103 @@
+# =============================================================================
+# Reading-list data. Edit this file to add papers — the page renders itself.
+#
+# Structure:
+#   meta:        hero banner text
+#   legend:      reading-depth grades (the A / A- / B+ / B / C badges)
+#   tags:        optional special tags (e.g. NVIDIA) shown in the legend
+#   categories:  top-level sections. Each category has EITHER `papers:` directly,
+#                OR `subtopics:` (each with its own `papers:`), or both.
+#
+# A paper entry:
+#   - year: 2024
+#     title: "Paper Title"
+#     note: "One-line takeaway."
+#     grade: "A"            # must match one of the legend grades
+#     url: "https://..."    # optional; omit to render a non-linked title
+#     featured: true        # optional; renders the title in bold
+#     tags: ["NV"]          # optional; must match keys in `tags`
+# =============================================================================
+
+meta:
+  badge: "REFERENCE"
+  title_main: "The LLM"
+  title_accent: "Reading List"
+  subtitle: >
+    A curated map of large language model research — from foundations to frontier
+    topics, with reading-depth recommendations.
+  author: "Haoming Wang"
+  version: "v1"
+  updated: "June 2026"
+
+legend:
+  - { grade: "A",  label: "Deep read" }
+  - { grade: "A-", label: "Method + experiments" }
+  - { grade: "B+", label: "Problem + conclusion" }
+  - { grade: "B",  label: "Skim" }
+  - { grade: "C",  label: "Core idea only" }
+
+tags:
+  - { key: "NV", label: "NVIDIA paper", color: "green" }
+  - { key: "★",  label: "Must-read",   color: "amber" }
+
+categories:
+  - name: "ML and LLM basics"
+    papers:
+      - { year: 2017, title: "Attention Is All You Need", note: "The Transformer architecture.", grade: "A", url: "https://arxiv.org/abs/1706.03762", featured: true, tags: ["★"] }
+      - { year: 2018, title: "BERT", note: "Bidirectional pretraining for language understanding.", grade: "A-", url: "https://arxiv.org/abs/1810.04805" }
+      - { year: 2020, title: "GPT-3: Language Models are Few-Shot Learners", note: "In-context learning emerges at scale.", grade: "A", url: "https://arxiv.org/abs/2005.14165" }
+
+  - name: "Modern LLM architecture"
+    papers:
+      - { year: 2021, title: "RoFormer (RoPE)", note: "Rotary position embeddings.", grade: "B", url: "https://arxiv.org/abs/2104.09864" }
+      - { year: 2023, title: "Llama 2", note: "Open weights, grouped-query attention, an RLHF recipe.", grade: "A-", url: "https://arxiv.org/abs/2307.09288" }
+      - { year: 2024, title: "Mixtral of Experts", note: "Sparse mixture-of-experts decoder.", grade: "B+", url: "https://arxiv.org/abs/2401.04088" }
+
+  - name: "LLM infrastructure"
+    papers:
+      - { year: 2019, title: "Megatron-LM", note: "Tensor / model parallelism for large transformers.", grade: "B", url: "https://arxiv.org/abs/1909.08053", tags: ["NV"] }
+      - { year: 2022, title: "FlashAttention", note: "IO-aware exact attention.", grade: "A-", url: "https://arxiv.org/abs/2205.14135" }
+      - { year: 2023, title: "vLLM / PagedAttention", note: "KV-cache paging for high-throughput serving.", grade: "A-", url: "https://arxiv.org/abs/2309.06180" }
+
+  - name: "LLM reasoning"
+    papers:
+      - { year: 2022, title: "Chain-of-Thought Prompting", note: "Reasoning via intermediate steps.", grade: "A", url: "https://arxiv.org/abs/2201.11903", featured: true, tags: ["★"] }
+      - { year: 2022, title: "Self-Consistency", note: "Sample-and-vote decoding for reasoning.", grade: "B+", url: "https://arxiv.org/abs/2203.11171" }
+      - { year: 2023, title: "Tree of Thoughts", note: "Deliberate search over reasoning paths.", grade: "B", url: "https://arxiv.org/abs/2305.10601" }
+
+  - name: "Reinforcement learning"
+    subtopics:
+      - name: "Core RL: PPO → GRPO"
+        papers:
+          - { year: 2017, title: "PPO", note: "Ratio clipping + trust region.", grade: "B", url: "https://arxiv.org/abs/1707.06347" }
+          - { year: 2022, title: "InstructGPT", note: "Reward model + PPO + KL penalty.", grade: "A-", url: "https://arxiv.org/abs/2203.02155" }
+          - { year: 2024, title: "DeepSeekMath (GRPO origin)", note: "Group-relative advantage, no value network.", grade: "A", url: "https://arxiv.org/abs/2402.03300", featured: true }
+      - name: "Preference optimization"
+        papers:
+          - { year: 2023, title: "DPO", note: "RL-free preference optimization.", grade: "A", url: "https://arxiv.org/abs/2305.18290" }
+
+  - name: "Topic 1 · Spatial reasoning"
+    subtopics:
+      - { name: "Background: standard design of VLMs", papers: [] }
+      - { name: "Spatial tasks and benchmarks — overview of VLM capability", papers: [] }
+      - { name: "Data-driven methods", papers: [] }
+      - { name: "Incorporating 3D modality in the input layer", papers: [] }
+      - { name: "Chain-of-thought reasoning for spatial tasks", papers: [] }
+      - { name: "Spatial-aware RL", papers: [] }
+      - { name: "Promising research directions", papers: [] }
+
+  - name: "Topic 2 · LLM explainability"
+    subtopics:
+      - { name: "Attribution methods", papers: [] }
+      - { name: "Sparse autoencoders", papers: [] }
+      - { name: "Linear representation hypothesis", papers: [] }
+      - { name: "Circuits", papers: [] }
+
+  - name: "Topic 3 · World models"
+    papers: []
+
+  - name: "Topic 4 · Diffusion LLMs"
+    papers: []
+
+  - name: "Others"
+    papers: []

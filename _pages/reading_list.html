@@ -1,0 +1,330 @@
+---
+layout: reading_list
+title: Reading List
+permalink: /reading-list/
+nav: true
+nav_order: 1
+description: A curated, structured reading list on large language models.
+---
+
+{%- assign data = site.data.reading_list -%}
+
+{%- comment -%} ---- compute totals ---- {%- endcomment -%}
+{%- assign all_papers = "" | split: "" -%}
+{%- assign subtopic_count = 0 -%}
+{%- for cat in data.categories -%}
+  {%- if cat.papers -%}{%- assign all_papers = all_papers | concat: cat.papers -%}{%- endif -%}
+  {%- if cat.subtopics -%}
+    {%- assign subtopic_count = subtopic_count | plus: cat.subtopics.size -%}
+    {%- for st in cat.subtopics -%}
+      {%- if st.papers -%}{%- assign all_papers = all_papers | concat: st.papers -%}{%- endif -%}
+    {%- endfor -%}
+  {%- endif -%}
+{%- endfor -%}
+{%- assign total_papers = all_papers | size -%}
+{%- assign category_count = data.categories | size -%}
+{%- assign years = all_papers | map: "year" | compact | uniq | sort -%}
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,800;1,600;1,700&display=swap');
+
+body { overflow-x: clip; }
+
+.rl {
+  --rl-serif: 'Playfair Display', 'Roboto Slab', Georgia, serif;
+  --rl-mono: 'Iosevka Fixed', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+}
+
+/* full-bleed helper */
+.rl-hero, .rl-body {
+  position: relative;
+  width: 100vw;
+  left: 50%;
+  margin-left: -50vw;
+}
+
+/* ---------- hero ---------- */
+.rl-hero {
+  margin-top: -3rem; /* cancel default layout's top margin so hero sits under the navbar */
+  padding: 5.5rem 1.5rem 4rem;
+  text-align: center;
+  background: radial-gradient(135% 150% at 50% -25%, #5b5380 0%, #312c4c 48%, #211d34 100%);
+  color: #e7e3f3;
+}
+.rl-hero__inner { max-width: 820px; margin: 0 auto; }
+.rl-pill {
+  display: inline-block;
+  font-family: var(--rl-mono);
+  font-size: .72rem;
+  letter-spacing: .24em;
+  text-transform: uppercase;
+  color: #ccc5e6;
+  border: 1px solid rgba(204, 197, 230, .38);
+  border-radius: 999px;
+  padding: .45rem 1.25rem;
+  margin-bottom: 2.2rem;
+}
+.rl-title {
+  font-family: var(--rl-serif);
+  font-weight: 800;
+  font-size: clamp(2.3rem, 6vw, 4.2rem);
+  line-height: 1.06;
+  margin: 0 0 1.6rem;
+}
+.rl-title__main { color: #14111f; }
+.rl-title__accent { color: #bca6e6; font-style: italic; font-weight: 700; }
+.rl-subtitle {
+  color: #aaa3c6;
+  font-size: 1.12rem;
+  line-height: 1.65;
+  max-width: 640px;
+  margin: 0 auto 2rem;
+}
+.rl-meta {
+  font-family: var(--rl-mono);
+  color: #837ca1;
+  letter-spacing: .07em;
+  font-size: .9rem;
+  margin: 0;
+}
+
+/* ---------- body ---------- */
+.rl-body { background: #faf9f7; padding: 2.6rem 1.5rem 4.5rem; }
+html[data-theme="dark"] .rl-body { background: #161618; }
+.rl-body__inner { max-width: 920px; margin: 0 auto; }
+
+/* ---------- legend ---------- */
+.rl-legend {
+  display: flex; flex-wrap: wrap; align-items: center;
+  gap: .7rem 1.5rem; margin-bottom: 1.8rem;
+}
+.rl-legend__item {
+  display: inline-flex; align-items: center; gap: .5rem;
+  font-size: .9rem; color: #4b4b55;
+}
+html[data-theme="dark"] .rl-legend__item { color: #b6b6c0; }
+.rl-legend__break { flex-basis: 100%; height: 0; }
+
+/* ---------- badges & tags ---------- */
+.rl-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 1.7rem; height: 1.55rem; padding: 0 .42rem;
+  border-radius: 6px; font-family: var(--rl-mono);
+  font-size: .78rem; font-weight: 700; flex: 0 0 auto;
+}
+.rl-badge--a  { background: #ede9fe; color: #6d28d9; }
+.rl-badge--am { background: #dbeafe; color: #1d4ed8; }
+.rl-badge--bp { background: #fef3c7; color: #92400e; }
+.rl-badge--b  { background: #e5e7eb; color: #374151; }
+.rl-badge--c  { background: #dcfce7; color: #166534; }
+.rl-badge--x  { background: #e5e7eb; color: #374151; }
+html[data-theme="dark"] .rl-badge--a  { background: #3a2f63; color: #d8c9ff; }
+html[data-theme="dark"] .rl-badge--am { background: #243a63; color: #bcd4ff; }
+html[data-theme="dark"] .rl-badge--bp { background: #4a3a1c; color: #f3d99a; }
+html[data-theme="dark"] .rl-badge--b  { background: #33343a; color: #d3d6dc; }
+html[data-theme="dark"] .rl-badge--c  { background: #1f3d2a; color: #a8e6bd; }
+html[data-theme="dark"] .rl-badge--x  { background: #33343a; color: #d3d6dc; }
+
+.rl-tag {
+  display: inline-flex; align-items: center; height: 1.4rem;
+  padding: 0 .5rem; border-radius: 6px; color: #fff;
+  font-family: var(--rl-mono); font-size: .72rem; font-weight: 700;
+}
+.rl-tag--green { background: #65a30d; }
+.rl-tag--amber { background: #d97706; }
+.rl-tag--gray  { background: #6b7280; }
+
+/* ---------- stats bar ---------- */
+.rl-stats {
+  display: flex; flex-wrap: wrap; justify-content: space-between;
+  align-items: center; gap: 1rem;
+  border: 1px solid #e4e1dc; border-radius: 14px;
+  padding: 1.1rem 1.6rem; margin-bottom: 2.6rem;
+}
+html[data-theme="dark"] .rl-stats { border-color: #2c2c30; }
+.rl-stats__left { display: flex; flex-wrap: wrap; gap: 1.7rem; }
+.rl-stats__left span { font-size: 1rem; color: #54545e; }
+html[data-theme="dark"] .rl-stats__left span { color: #c6c6ce; }
+.rl-stats__left b { color: #26262e; }
+html[data-theme="dark"] .rl-stats__left b { color: #ededf2; }
+.rl-stats__years {
+  display: flex; flex-wrap: wrap; gap: 1.15rem;
+  font-family: var(--rl-mono); font-size: .85rem;
+}
+.rl-year__y { color: #a0a0a6; }
+.rl-year b { color: #2a2a32; }
+html[data-theme="dark"] .rl-year b { color: #e7e7ea; }
+
+/* ---------- category ---------- */
+.rl-cat { margin-bottom: 1.3rem; }
+.rl-cat__head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 1rem; cursor: pointer; list-style: none;
+  background: #ece9fb; border-radius: 12px; padding: .9rem 1.25rem;
+}
+html[data-theme="dark"] .rl-cat__head { background: #25223a; }
+.rl-cat__head::-webkit-details-marker { display: none; }
+.rl-cat__name {
+  display: flex; align-items: center; gap: .65rem;
+  font-family: var(--rl-serif); font-weight: 700;
+  font-size: 1.45rem; color: #2c2748;
+}
+html[data-theme="dark"] .rl-cat__name { color: #cdc4f0; }
+.rl-cat__name::before {
+  content: "\25B8"; font-size: .8rem; color: #8a7fb8;
+  transition: transform .15s ease; display: inline-block;
+}
+details[open] > .rl-cat__head .rl-cat__name::before { transform: rotate(90deg); }
+.rl-cat__count {
+  font-family: var(--rl-mono); font-size: .85rem;
+  letter-spacing: .04em; color: #6b6b75; white-space: nowrap;
+}
+html[data-theme="dark"] .rl-cat__count { color: #a0a0aa; }
+.rl-cat__body { padding: .5rem 0 .2rem; }
+
+/* ---------- subtopic ---------- */
+.rl-sub {
+  margin: .2rem 0 .2rem .5rem; padding-left: 1.2rem;
+  border-left: 2px solid #ece9e2;
+}
+html[data-theme="dark"] .rl-sub { border-left-color: #2c2c30; }
+.rl-sub__head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 1rem; cursor: pointer; list-style: none; padding: .5rem .4rem;
+}
+.rl-sub__head::-webkit-details-marker { display: none; }
+.rl-sub__name {
+  display: flex; align-items: center; gap: .55rem;
+  font-weight: 600; font-size: 1rem; color: #5b5b66;
+}
+html[data-theme="dark"] .rl-sub__name { color: #adadb8; }
+.rl-sub__name::before {
+  content: "\25B8"; font-size: .7rem; color: #a8a8b0;
+  transition: transform .15s ease; display: inline-block;
+}
+details[open] > .rl-sub__head .rl-sub__name::before { transform: rotate(90deg); }
+.rl-sub__count { font-family: var(--rl-mono); font-size: .8rem; color: #a8a8b0; }
+
+/* ---------- paper row ---------- */
+.rl-paper {
+  display: flex; align-items: baseline; gap: 1rem;
+  padding: .7rem .8rem; border-radius: 8px;
+}
+.rl-paper:hover { background: #f1eff5; }
+html[data-theme="dark"] .rl-paper:hover { background: #20202e; }
+.rl-paper__year {
+  flex: 0 0 3rem; font-family: var(--rl-mono);
+  font-size: .8rem; color: #b4b4ba;
+}
+.rl-paper__body { flex: 1 1 auto; min-width: 0; }
+.rl-paper__title-row { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.rl-paper__title { color: #26262e; text-decoration: none; font-size: 1.02rem; }
+.rl-paper__title:hover { color: var(--global-theme-color); text-decoration: underline; }
+html[data-theme="dark"] .rl-paper__title { color: #dadae1; }
+.rl-paper--featured .rl-paper__title { font-weight: 700; }
+.rl-paper__note { color: #9a9aa2; font-size: .9rem; margin-top: .15rem; }
+.rl-paper .rl-badge { align-self: flex-start; }
+
+.rl-empty {
+  color: #a8a8b0; font-style: italic;
+  font-size: .92rem; padding: .55rem .8rem; margin: 0;
+}
+
+/* ---------- responsive ---------- */
+@media (max-width: 620px) {
+  .rl-hero { padding: 4rem 1.2rem 3rem; }
+  .rl-stats { flex-direction: column; align-items: flex-start; }
+  .rl-paper__year { flex-basis: 2.6rem; }
+}
+</style>
+
+<div class="rl">
+
+  <header class="rl-hero">
+    <div class="rl-hero__inner">
+      <span class="rl-pill">{{ data.meta.badge }} &middot; {{ total_papers }} papers</span>
+      <h1 class="rl-title">
+        <span class="rl-title__main">{{ data.meta.title_main }}</span>
+        <span class="rl-title__accent">{{ data.meta.title_accent }}</span>
+      </h1>
+      <p class="rl-subtitle">{{ data.meta.subtitle }}</p>
+      <p class="rl-meta">{{ data.meta.author }} &middot; {{ data.meta.version }} &middot; Updated {{ data.meta.updated }}</p>
+    </div>
+  </header>
+
+  <div class="rl-body">
+    <div class="rl-body__inner">
+
+      <div class="rl-legend">
+        {%- for g in data.legend -%}
+        <span class="rl-legend__item">{%- include rl_badge.html grade=g.grade -%}{{ g.label }}</span>
+        {%- endfor -%}
+        {%- if data.tags and data.tags.size > 0 -%}
+        <span class="rl-legend__break"></span>
+        {%- for t in data.tags -%}
+        <span class="rl-legend__item"><span class="rl-tag rl-tag--{{ t.color | default: 'gray' }}">{{ t.key }}</span>{{ t.label }}</span>
+        {%- endfor -%}
+        {%- endif -%}
+      </div>
+
+      <div class="rl-stats">
+        <div class="rl-stats__left">
+          <span><b>{{ total_papers }}</b> papers</span>
+          <span><b>{{ category_count }}</b> categories</span>
+          <span><b>{{ subtopic_count }}</b> sub-topics</span>
+        </div>
+        {%- if years.size > 0 -%}
+        <div class="rl-stats__years">
+          {%- for y in years -%}
+          {%- assign yc = all_papers | where: "year", y | size -%}
+          <span class="rl-year"><span class="rl-year__y">{{ y }}:</span> <b>{{ yc }}</b></span>
+          {%- endfor -%}
+        </div>
+        {%- endif -%}
+      </div>
+
+      {%- for cat in data.categories -%}
+        {%- assign cat_count = 0 -%}
+        {%- if cat.papers -%}{%- assign cat_count = cat.papers.size -%}{%- endif -%}
+        {%- if cat.subtopics -%}{%- for st in cat.subtopics -%}{%- if st.papers -%}{%- assign cat_count = cat_count | plus: st.papers.size -%}{%- endif -%}{%- endfor -%}{%- endif -%}
+        <details class="rl-cat" open>
+          <summary class="rl-cat__head">
+            <span class="rl-cat__name">{{ cat.name }}</span>
+            <span class="rl-cat__count">{{ cat_count }} papers</span>
+          </summary>
+          <div class="rl-cat__body">
+            {%- if cat.papers and cat.papers.size > 0 -%}
+              {%- for p in cat.papers -%}{%- include rl_paper.html paper=p -%}{%- endfor -%}
+            {%- endif -%}
+            {%- if cat.subtopics and cat.subtopics.size > 0 -%}
+              {%- for st in cat.subtopics -%}
+              <details class="rl-sub" open>
+                <summary class="rl-sub__head">
+                  <span class="rl-sub__name">{{ st.name }}</span>
+                  <span class="rl-sub__count">{{ st.papers | size }}</span>
+                </summary>
+                <div class="rl-sub__body">
+                  {%- if st.papers and st.papers.size > 0 -%}
+                    {%- for p in st.papers -%}{%- include rl_paper.html paper=p -%}{%- endfor -%}
+                  {%- else -%}
+                    <p class="rl-empty">Papers coming soon.</p>
+                  {%- endif -%}
+                </div>
+              </details>
+              {%- endfor -%}
+            {%- endif -%}
+            {%- assign has_direct = false -%}
+            {%- if cat.papers and cat.papers.size > 0 -%}{%- assign has_direct = true -%}{%- endif -%}
+            {%- assign has_subs = false -%}
+            {%- if cat.subtopics and cat.subtopics.size > 0 -%}{%- assign has_subs = true -%}{%- endif -%}
+            {%- unless has_direct or has_subs -%}
+              <p class="rl-empty">Papers coming soon.</p>
+            {%- endunless -%}
+          </div>
+        </details>
+      {%- endfor -%}
+
+    </div>
+  </div>
+
+</div>

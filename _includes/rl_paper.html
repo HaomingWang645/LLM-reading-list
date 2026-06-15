@@ -1,0 +1,20 @@
+{%- comment -%} Renders one paper row. Param: paper {%- endcomment -%}
+{%- assign p = include.paper -%}
+<div class="rl-paper{% if p.featured %} rl-paper--featured{% endif %}">
+  <span class="rl-paper__year">{{ p.year }}</span>
+  <div class="rl-paper__body">
+    <div class="rl-paper__title-row">
+      {%- if p.url -%}
+      <a class="rl-paper__title" href="{{ p.url }}" target="_blank" rel="noopener">{{ p.title }}</a>
+      {%- else -%}
+      <span class="rl-paper__title">{{ p.title }}</span>
+      {%- endif -%}
+      {%- if p.tags -%}{%- for tg in p.tags -%}
+        {%- assign tdef = site.data.reading_list.tags | where: "key", tg | first -%}
+        <span class="rl-tag rl-tag--{{ tdef.color | default: 'gray' }}">{{ tg }}</span>
+      {%- endfor -%}{%- endif -%}
+    </div>
+    {%- if p.note -%}<div class="rl-paper__note">{{ p.note }}</div>{%- endif -%}
+  </div>
+  {%- if p.grade -%}{%- include rl_badge.html grade=p.grade -%}{%- endif -%}
+</div>
