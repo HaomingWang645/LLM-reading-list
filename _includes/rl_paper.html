@@ -1,17 +1,22 @@
-{%- comment -%} Renders one paper row. Param: paper {%- endcomment -%}
+{%- comment -%} Renders one paper row. Param: paper.
+NOTE: Jekyll {% include %} shares the caller's scope, so local vars are namespaced. {%- endcomment -%}
 {%- assign p = include.paper -%}
 <div class="rl-paper{% if p.featured %} rl-paper--featured{% endif %}">
   <span class="rl-paper__year">{{ p.year }}</span>
   <div class="rl-paper__body">
     <div class="rl-paper__title-row">
       {%- if p.url -%}
-      <a class="rl-paper__title" href="{{ p.url }}" target="_blank" rel="noopener">{{ p.title }}</a>
+      <a class="rl-paper__title" href="{{ p.url }}" target="_blank" rel="noopener noreferrer" aria-label="{{ p.title }} (opens in a new tab)">{{ p.title }}</a>
       {%- else -%}
       <span class="rl-paper__title">{{ p.title }}</span>
       {%- endif -%}
       {%- if p.tags -%}{%- for tg in p.tags -%}
-        {%- assign tdef = site.data.reading_list.tags | where: "key", tg | first -%}
-        <span class="rl-tag rl-tag--{{ tdef.color | default: 'gray' }}">{{ tg }}</span>
+        {%- assign rl_paper_tdef = site.data.reading_list.tags | where: "key", tg | first -%}
+        {%- if rl_paper_tdef -%}
+        <span class="rl-tag rl-tag--{{ rl_paper_tdef.color | default: 'gray' }}">{{ tg }}</span>
+        {%- else -%}
+        <span class="rl-tag rl-tag--gray" title="Unknown tag — add it to the `tags:` block in reading_list.yml">{{ tg }}?</span>
+        {%- endif -%}
       {%- endfor -%}{%- endif -%}
     </div>
     {%- if p.note -%}<div class="rl-paper__note">{{ p.note }}</div>{%- endif -%}

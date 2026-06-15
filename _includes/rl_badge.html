@@ -1,10 +1,11 @@
-{%- comment -%} Renders a reading-depth badge. Param: grade {%- endcomment -%}
+{%- comment -%} Renders a reading-depth badge. Param: grade.
+NOTE: Jekyll {% include %} shares the caller's scope, so the local var is namespaced. {%- endcomment -%}
 {%- case include.grade -%}
-{%- when "A" -%}{%- assign gclass = "a" -%}
-{%- when "A-" -%}{%- assign gclass = "am" -%}
-{%- when "B+" -%}{%- assign gclass = "bp" -%}
-{%- when "B" -%}{%- assign gclass = "b" -%}
-{%- when "C" -%}{%- assign gclass = "c" -%}
-{%- else -%}{%- assign gclass = "x" -%}
+{%- when "A" -%}{%- assign rl_badge_gclass = "a" -%}
+{%- when "A-" -%}{%- assign rl_badge_gclass = "am" -%}
+{%- when "B+" -%}{%- assign rl_badge_gclass = "bp" -%}
+{%- when "B" -%}{%- assign rl_badge_gclass = "b" -%}
+{%- when "C" -%}{%- assign rl_badge_gclass = "c" -%}
+{%- else -%}{%- assign rl_badge_gclass = "x" -%}
 {%- endcase -%}
-<span class="rl-badge rl-badge--{{ gclass }}">{{ include.grade }}</span>
+<span class="rl-badge rl-badge--{{ rl_badge_gclass }}"{% if rl_badge_gclass == "x" %} title="Unknown grade — use one of A, A-, B+, B, C"{% endif %}>{{ include.grade }}{% if rl_badge_gclass == "x" %}?{% endif %}</span>

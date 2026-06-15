@@ -25,27 +25,29 @@ description: A curated, structured reading list on large language models.
 {%- assign category_count = data.categories | size -%}
 {%- assign years = all_papers | map: "year" | compact | uniq | sort -%}
 
+{%- comment -%} All styles below are scoped to .rl (plus a couple of page-only wrapper tweaks).
+This inline <style> is only loaded on this page. {%- endcomment -%}
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,800;1,600;1,700&display=swap');
 
-body { overflow-x: clip; }
+body { overflow-x: clip; } /* page-only: belt-and-suspenders against full-bleed overflow */
+.container.mt-5 { margin-top: 0 !important; } /* page-only: let the hero sit flush under the fixed navbar */
 
 .rl {
   --rl-serif: 'Playfair Display', 'Roboto Slab', Georgia, serif;
   --rl-mono: 'Iosevka Fixed', ui-monospace, 'SFMono-Regular', Menlo, monospace;
 }
 
-/* full-bleed helper */
+/* full-bleed helper: calc() breakout is robust to the body's side padding and the scrollbar width */
 .rl-hero, .rl-body {
   position: relative;
-  width: 100vw;
-  left: 50%;
-  margin-left: -50vw;
+  width: auto;
+  margin-left: calc(50% - 50vw);
+  margin-right: calc(50% - 50vw);
 }
 
 /* ---------- hero ---------- */
 .rl-hero {
-  margin-top: -3rem; /* cancel default layout's top margin so hero sits under the navbar */
   padding: 5.5rem 1.5rem 4rem;
   text-align: center;
   background: radial-gradient(135% 150% at 50% -25%, #5b5380 0%, #312c4c 48%, #211d34 100%);
@@ -71,7 +73,7 @@ body { overflow-x: clip; }
   line-height: 1.06;
   margin: 0 0 1.6rem;
 }
-.rl-title__main { color: #14111f; }
+.rl-title__main { color: #f3f0fb; }
 .rl-title__accent { color: #bca6e6; font-style: italic; font-weight: 700; }
 .rl-subtitle {
   color: #aaa3c6;
@@ -82,7 +84,7 @@ body { overflow-x: clip; }
 }
 .rl-meta {
   font-family: var(--rl-mono);
-  color: #837ca1;
+  color: #b0a9cf;
   letter-spacing: .07em;
   font-size: .9rem;
   margin: 0;
@@ -117,21 +119,22 @@ html[data-theme="dark"] .rl-legend__item { color: #b6b6c0; }
 .rl-badge--bp { background: #fef3c7; color: #92400e; }
 .rl-badge--b  { background: #e5e7eb; color: #374151; }
 .rl-badge--c  { background: #dcfce7; color: #166534; }
-.rl-badge--x  { background: #e5e7eb; color: #374151; }
+.rl-badge--x  { background: #fde2e2; color: #b91c1c; outline: 1px dashed #b91c1c; } /* invalid grade */
 html[data-theme="dark"] .rl-badge--a  { background: #3a2f63; color: #d8c9ff; }
 html[data-theme="dark"] .rl-badge--am { background: #243a63; color: #bcd4ff; }
 html[data-theme="dark"] .rl-badge--bp { background: #4a3a1c; color: #f3d99a; }
 html[data-theme="dark"] .rl-badge--b  { background: #33343a; color: #d3d6dc; }
 html[data-theme="dark"] .rl-badge--c  { background: #1f3d2a; color: #a8e6bd; }
-html[data-theme="dark"] .rl-badge--x  { background: #33343a; color: #d3d6dc; }
+html[data-theme="dark"] .rl-badge--x  { background: #4a1f1f; color: #ffb4b4; outline-color: #ffb4b4; }
 
 .rl-tag {
   display: inline-flex; align-items: center; height: 1.4rem;
   padding: 0 .5rem; border-radius: 6px; color: #fff;
+  background: #6b7280; /* fallback so an unknown color never yields white-on-white */
   font-family: var(--rl-mono); font-size: .72rem; font-weight: 700;
 }
-.rl-tag--green { background: #65a30d; }
-.rl-tag--amber { background: #d97706; }
+.rl-tag--green { background: #4d7c0f; }
+.rl-tag--amber { background: #b45309; }
 .rl-tag--gray  { background: #6b7280; }
 
 /* ---------- stats bar ---------- */
@@ -151,7 +154,8 @@ html[data-theme="dark"] .rl-stats__left b { color: #ededf2; }
   display: flex; flex-wrap: wrap; gap: 1.15rem;
   font-family: var(--rl-mono); font-size: .85rem;
 }
-.rl-year__y { color: #a0a0a6; }
+.rl-year__y { color: #70707a; }
+html[data-theme="dark"] .rl-year__y { color: #8b8b93; }
 .rl-year b { color: #2a2a32; }
 html[data-theme="dark"] .rl-year b { color: #e7e7ea; }
 
@@ -164,6 +168,9 @@ html[data-theme="dark"] .rl-year b { color: #e7e7ea; }
 }
 html[data-theme="dark"] .rl-cat__head { background: #25223a; }
 .rl-cat__head::-webkit-details-marker { display: none; }
+.rl-cat__head:focus-visible {
+  outline: 2px solid var(--global-theme-color); outline-offset: 2px; border-radius: 12px;
+}
 .rl-cat__name {
   display: flex; align-items: center; gap: .65rem;
   font-family: var(--rl-serif); font-weight: 700;
@@ -193,6 +200,9 @@ html[data-theme="dark"] .rl-sub { border-left-color: #2c2c30; }
   gap: 1rem; cursor: pointer; list-style: none; padding: .5rem .4rem;
 }
 .rl-sub__head::-webkit-details-marker { display: none; }
+.rl-sub__head:focus-visible {
+  outline: 2px solid var(--global-theme-color); outline-offset: 2px; border-radius: 8px;
+}
 .rl-sub__name {
   display: flex; align-items: center; gap: .55rem;
   font-weight: 600; font-size: 1rem; color: #5b5b66;
@@ -203,30 +213,35 @@ html[data-theme="dark"] .rl-sub__name { color: #adadb8; }
   transition: transform .15s ease; display: inline-block;
 }
 details[open] > .rl-sub__head .rl-sub__name::before { transform: rotate(90deg); }
-.rl-sub__count { font-family: var(--rl-mono); font-size: .8rem; color: #a8a8b0; }
+.rl-sub__count { font-family: var(--rl-mono); font-size: .8rem; color: #8c8c95; }
 
 /* ---------- paper row ---------- */
 .rl-paper {
-  display: flex; align-items: baseline; gap: 1rem;
+  display: flex; align-items: flex-start; gap: 1rem;
   padding: .7rem .8rem; border-radius: 8px;
 }
 .rl-paper:hover { background: #f1eff5; }
 html[data-theme="dark"] .rl-paper:hover { background: #20202e; }
 .rl-paper__year {
   flex: 0 0 3rem; font-family: var(--rl-mono);
-  font-size: .8rem; color: #b4b4ba;
+  font-size: .8rem; color: #6f6f78; padding-top: .12rem;
 }
-.rl-paper__body { flex: 1 1 auto; min-width: 0; }
+html[data-theme="dark"] .rl-paper__year { color: #8b8b93; }
+.rl-paper__body { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
 .rl-paper__title-row { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
 .rl-paper__title { color: #26262e; text-decoration: none; font-size: 1.02rem; }
 .rl-paper__title:hover { color: var(--global-theme-color); text-decoration: underline; }
+.rl-paper__title:focus-visible {
+  outline: 2px solid var(--global-theme-color); outline-offset: 2px; border-radius: 3px;
+}
 html[data-theme="dark"] .rl-paper__title { color: #dadae1; }
 .rl-paper--featured .rl-paper__title { font-weight: 700; }
-.rl-paper__note { color: #9a9aa2; font-size: .9rem; margin-top: .15rem; }
+.rl-paper__note { color: #6b6b73; font-size: .9rem; margin-top: .15rem; }
+html[data-theme="dark"] .rl-paper__note { color: #9a9aa3; }
 .rl-paper .rl-badge { align-self: flex-start; }
 
 .rl-empty {
-  color: #a8a8b0; font-style: italic;
+  color: #8c8c95; font-style: italic;
   font-size: .92rem; padding: .55rem .8rem; margin: 0;
 }
 
@@ -235,6 +250,11 @@ html[data-theme="dark"] .rl-paper__title { color: #dadae1; }
   .rl-hero { padding: 4rem 1.2rem 3rem; }
   .rl-stats { flex-direction: column; align-items: flex-start; }
   .rl-paper__year { flex-basis: 2.6rem; }
+}
+
+/* ---------- reduced motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .rl-cat__name::before, .rl-sub__name::before { transition: none; }
 }
 </style>
 
@@ -287,7 +307,7 @@ html[data-theme="dark"] .rl-paper__title { color: #dadae1; }
         {%- assign cat_count = 0 -%}
         {%- if cat.papers -%}{%- assign cat_count = cat.papers.size -%}{%- endif -%}
         {%- if cat.subtopics -%}{%- for st in cat.subtopics -%}{%- if st.papers -%}{%- assign cat_count = cat_count | plus: st.papers.size -%}{%- endif -%}{%- endfor -%}{%- endif -%}
-        <details class="rl-cat" open>
+        <details class="rl-cat"{% if cat_count > 0 %} open{% endif %}>
           <summary class="rl-cat__head">
             <span class="rl-cat__name">{{ cat.name }}</span>
             <span class="rl-cat__count">{{ cat_count }} papers</span>
@@ -298,10 +318,10 @@ html[data-theme="dark"] .rl-paper__title { color: #dadae1; }
             {%- endif -%}
             {%- if cat.subtopics and cat.subtopics.size > 0 -%}
               {%- for st in cat.subtopics -%}
-              <details class="rl-sub" open>
+              <details class="rl-sub"{% if st.papers and st.papers.size > 0 %} open{% endif %}>
                 <summary class="rl-sub__head">
                   <span class="rl-sub__name">{{ st.name }}</span>
-                  <span class="rl-sub__count">{{ st.papers | size }}</span>
+                  <span class="rl-sub__count">{{ st.papers | size }} papers</span>
                 </summary>
                 <div class="rl-sub__body">
                   {%- if st.papers and st.papers.size > 0 -%}

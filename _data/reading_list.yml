@@ -9,13 +9,17 @@
 #                OR `subtopics:` (each with its own `papers:`), or both.
 #
 # A paper entry:
-#   - year: 2024
+#   - year: 2024            # a plain number — never quote it (quoting breaks the year stats)
 #     title: "Paper Title"
 #     note: "One-line takeaway."
-#     grade: "A"            # must match one of the legend grades
+#     grade: "A"            # MUST be exactly one of: A, A-, B+, B, C
 #     url: "https://..."    # optional; omit to render a non-linked title
 #     featured: true        # optional; renders the title in bold
-#     tags: ["NV"]          # optional; must match keys in `tags`
+#     tags: ["NV"]          # optional; each must match a key in the `tags:` block below
+#
+# Valid tag colors (in the `tags:` block): green, amber, gray
+# A wrong grade renders a red "?" badge; an unknown tag renders a gray "?" pill —
+# both are visible in preview so mistakes are easy to catch.
 # =============================================================================
 
 meta:
