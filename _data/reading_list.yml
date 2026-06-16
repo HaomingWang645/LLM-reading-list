@@ -8,6 +8,12 @@
 #   categories:  top-level sections. Each category has EITHER `papers:` directly,
 #                OR `subtopics:` (each with its own `papers:`), or both.
 #
+# A subtopic may optionally lead with a video:
+#   - name: "Tokenization"
+#     video_id:   "zduSFxRajkE"   # YouTube id — renders a clickable thumbnail
+#     video_note: "Karpathy — ..."# optional caption under the thumbnail
+#     papers: [ ... ]             # related papers, shown below the video
+#
 # A paper entry:
 #   - year: 2024            # a plain number — never quote it (quoting breaks the year stats)
 #     title: "Paper Title"
@@ -47,14 +53,34 @@ tags:
 
 categories:
   - name: "ML and LLM basics"
-    papers:
-      # Start here — visual primers before the papers.
-      - { year: 2024, title: "Large language models, a short introduction", note: "3Blue1Brown — a visual, jargon-light overview of what an LLM is.", url: "https://youtu.be/LPZh9BOjkQs", featured: true, tags: ["▶", "★"] }
-      - { year: 2024, title: "Tokenization", note: "Andrej Karpathy — builds a tokenizer from scratch; how text becomes tokens. (Long.)", url: "https://youtu.be/zduSFxRajkE", featured: true, tags: ["▶"] }
-      - { year: 2024, title: "Word embeddings and unembedding", note: "3Blue1Brown — the input and output layers of an LLM, visualized.", url: "https://youtu.be/wjZofJX0v4M", featured: true, tags: ["▶"] }
-      - { year: 2024, title: "Attention in transformers, visually explained", note: "3Blue1Brown — how attention moves information between tokens.", featured: true, url: "https://youtu.be/eMlx5fFNoYc", tags: ["▶"] }
-      - { year: 2023, title: "GPT from scratch", note: "Andrej Karpathy — builds a GPT in code, step by step. (Long.)", url: "https://youtu.be/kCc8FmEb1nY", featured: true, tags: ["▶"] }
-
+    # Each subsection leads with a video primer (video_id renders a YouTube
+    # thumbnail); expand it to see related papers. Add real papers under `papers:`.
+    subtopics:
+      - name: "Large language models, a short introduction"
+        video_id: "LPZh9BOjkQs"
+        video_note: "3Blue1Brown — a visual, jargon-light overview of what an LLM is."
+        papers:
+          - { title: "Placeholder — add a related paper here", note: "TODO: e.g. the GPT-3 few-shot-learning paper." }
+      - name: "Tokenization"
+        video_id: "zduSFxRajkE"
+        video_note: "Andrej Karpathy — builds a tokenizer from scratch; how text becomes tokens. (Long.)"
+        papers:
+          - { title: "Placeholder — add a related paper here", note: "TODO: e.g. BPE / SentencePiece." }
+      - name: "Word embeddings and unembedding"
+        video_id: "wjZofJX0v4M"
+        video_note: "3Blue1Brown — the input and output layers of an LLM, visualized."
+        papers:
+          - { title: "Placeholder — add a related paper here", note: "TODO: e.g. word2vec." }
+      - name: "Attention in transformers"
+        video_id: "eMlx5fFNoYc"
+        video_note: "3Blue1Brown — how attention moves information between tokens."
+        papers:
+          - { title: "Placeholder — add a related paper here", note: "TODO: e.g. Attention Is All You Need." }
+      - name: "GPT from scratch"
+        video_id: "kCc8FmEb1nY"
+        video_note: "Andrej Karpathy — builds a GPT in code, step by step. (Long.)"
+        papers:
+          - { title: "Placeholder — add a related paper here", note: "TODO: add a related paper." }
 
   - name: "Modern LLM architecture"
     papers:

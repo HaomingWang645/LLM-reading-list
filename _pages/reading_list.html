@@ -205,6 +205,44 @@ html[data-theme="dark"] .rl-sub__name { color: #adadb8; }
 details[open] > .rl-sub__head .rl-sub__name::before { transform: rotate(90deg); }
 .rl-sub__count { font-family: var(--rl-mono); font-size: .8rem; color: #8c8c95; }
 
+/* ---------- video thumbnail ---------- */
+.rl-video {
+  display: block; width: 100%; max-width: 360px;
+  margin: .5rem .8rem 1.1rem; text-decoration: none;
+}
+.rl-video__frame {
+  position: relative; display: block;
+  border-radius: 10px; overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .18);
+}
+.rl-video__thumb {
+  display: block; width: 100%; height: auto; aspect-ratio: 16 / 9;
+  object-fit: cover; background: #d9d6e2;
+  transition: transform .2s ease, filter .2s ease;
+}
+.rl-video:hover .rl-video__thumb { transform: scale(1.03); filter: brightness(.9); }
+.rl-video__play {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: 54px; height: 54px; border-radius: 50%;
+  background: rgba(20, 16, 32, .68);
+  display: flex; align-items: center; justify-content: center;
+  transition: background .2s ease;
+}
+.rl-video:hover .rl-video__play { background: var(--global-theme-color, #b91c1c); }
+.rl-video__play::before {
+  content: ""; display: block; margin-left: 4px;
+  border-style: solid; border-width: 10px 0 10px 17px;
+  border-color: transparent transparent transparent #fff;
+}
+.rl-video:focus-visible .rl-video__frame {
+  outline: 2px solid var(--global-theme-color); outline-offset: 3px;
+}
+.rl-video__cap {
+  display: block; margin-top: .5rem;
+  font-size: .88rem; line-height: 1.45; color: #6b6b73;
+}
+html[data-theme="dark"] .rl-video__cap { color: #9a9aa3; }
+
 /* ---------- paper row ---------- */
 .rl-paper {
   display: flex; align-items: flex-start; gap: 1rem;
@@ -280,13 +318,19 @@ html[data-theme="dark"] .rl-paper__note { color: #9a9aa3; }
       </div>
 
       {%- for cat in data.categories -%}
-        {%- assign cat_count = 0 -%}
-        {%- if cat.papers -%}{%- assign cat_count = cat.papers.size -%}{%- endif -%}
-        {%- if cat.subtopics -%}{%- for st in cat.subtopics -%}{%- if st.papers -%}{%- assign cat_count = cat_count | plus: st.papers.size -%}{%- endif -%}{%- endfor -%}{%- endif -%}
+        {%- comment -%} Categories with subtopics report a section count; flat ones report a paper count. {%- endcomment -%}
+        {%- if cat.subtopics and cat.subtopics.size > 0 -%}
+          {%- assign cat_count = cat.subtopics.size -%}
+          {%- assign cat_unit = "sections" -%}
+        {%- else -%}
+          {%- assign cat_count = 0 -%}
+          {%- if cat.papers -%}{%- assign cat_count = cat.papers.size -%}{%- endif -%}
+          {%- assign cat_unit = "papers" -%}
+        {%- endif -%}
         <details class="rl-cat">
           <summary class="rl-cat__head">
             <span class="rl-cat__name">{{ cat.name }}</span>
-            <span class="rl-cat__count">{{ cat_count }} sections</span>
+            <span class="rl-cat__count">{{ cat_count }} {{ cat_unit }}</span>
           </summary>
           <div class="rl-cat__body">
             {%- if cat.papers and cat.papers.size > 0 -%}
@@ -300,9 +344,18 @@ html[data-theme="dark"] .rl-paper__note { color: #9a9aa3; }
                   <span class="rl-sub__count">{{ st.papers | size }} papers</span>
                 </summary>
                 <div class="rl-sub__body">
+                  {%- if st.video_id -%}
+                  <a class="rl-video" href="https://youtu.be/{{ st.video_id }}" target="_blank" rel="noopener noreferrer" aria-label="{{ st.name }} — watch on YouTube (opens in a new tab)">
+                    <span class="rl-video__frame">
+                      <img class="rl-video__thumb" src="https://img.youtube.com/vi/{{ st.video_id }}/hqdefault.jpg" alt="" loading="lazy" width="480" height="360">
+                      <span class="rl-video__play" aria-hidden="true"></span>
+                    </span>
+                    {%- if st.video_note -%}<span class="rl-video__cap">{{ st.video_note }}</span>{%- endif -%}
+                  </a>
+                  {%- endif -%}
                   {%- if st.papers and st.papers.size > 0 -%}
                     {%- for p in st.papers -%}{%- include rl_paper.html paper=p -%}{%- endfor -%}
-                  {%- else -%}
+                  {%- elsif st.video_id == nil -%}
                     <p class="rl-empty">Papers coming soon.</p>
                   {%- endif -%}
                 </div>
