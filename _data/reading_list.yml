@@ -43,13 +43,18 @@ legend:
 tags:
   - { key: "NV", label: "NVIDIA paper", color: "green" }
   - { key: "★",  label: "Must-read",   color: "amber" }
+  - { key: "▶",  label: "Video",       color: "gray" }
 
 categories:
   - name: "ML and LLM basics"
     papers:
-      - { year: 2017, title: "Attention Is All You Need", note: "The Transformer architecture.", grade: "A", url: "https://arxiv.org/abs/1706.03762", featured: true, tags: ["★"] }
-      - { year: 2018, title: "BERT", note: "Bidirectional pretraining for language understanding.", grade: "A-", url: "https://arxiv.org/abs/1810.04805" }
-      - { year: 2020, title: "GPT-3: Language Models are Few-Shot Learners", note: "In-context learning emerges at scale.", grade: "A", url: "https://arxiv.org/abs/2005.14165" }
+      # Start here — visual primers before the papers.
+      - { year: 2024, title: "Large language models, a short introduction", note: "3Blue1Brown — a visual, jargon-light overview of what an LLM is.", url: "https://youtu.be/LPZh9BOjkQs", featured: true, tags: ["▶", "★"] }
+      - { year: 2024, title: "Tokenization", note: "Andrej Karpathy — builds a tokenizer from scratch; how text becomes tokens. (Long.)", url: "https://youtu.be/zduSFxRajkE", featured: true, tags: ["▶"] }
+      - { year: 2024, title: "Word embeddings and unembedding", note: "3Blue1Brown — the input and output layers of an LLM, visualized.", url: "https://youtu.be/wjZofJX0v4M", featured: true, tags: ["▶"] }
+      - { year: 2024, title: "Attention in transformers, visually explained", note: "3Blue1Brown — how attention moves information between tokens.", featured: true, url: "https://youtu.be/eMlx5fFNoYc", tags: ["▶"] }
+      - { year: 2023, title: "GPT from scratch", note: "Andrej Karpathy — builds a GPT in code, step by step. (Long.)", url: "https://youtu.be/kCc8FmEb1nY", featured: true, tags: ["▶"] }
+
 
   - name: "Modern LLM architecture"
     papers:
