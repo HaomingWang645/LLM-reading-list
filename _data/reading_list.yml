@@ -108,14 +108,259 @@ categories:
 
   - name: "Reinforcement learning"
     subtopics:
-      - name: "Core RL: PPO → GRPO"
-        papers:
-          - { year: 2017, title: "PPO", note: "Ratio clipping + trust region.", grade: "B", url: "https://arxiv.org/abs/1707.06347" }
-          - { year: 2022, title: "InstructGPT", note: "Reward model + PPO + KL penalty.", grade: "A-", url: "https://arxiv.org/abs/2203.02155" }
-          - { year: 2024, title: "DeepSeekMath (GRPO origin)", note: "Group-relative advantage, no value network.", grade: "A", url: "https://arxiv.org/abs/2402.03300", featured: true }
-      - name: "Preference optimization"
-        papers:
-          - { year: 2023, title: "DPO", note: "RL-free preference optimization.", grade: "A", url: "https://arxiv.org/abs/2305.18290" }
+      - name: "Algorithms — policy optimization for LLMs"
+        sections:
+          - heading: "Overview"
+            notes:
+              - text: "Post-training an LLM with RL is a narrow instance of the general problem. The environment is degenerate — a prompt arrives, the policy emits one trajectory of tokens, the episode ends — and the reward is usually a single scalar at the last token. What makes it hard is not exploration but credit assignment over thousands of tokens, and stability at a scale where a diverged run costs a cluster-week."
+              - text: "Every algorithm below is a different answer to the same three questions: how to estimate the advantage of a trajectory, how far the policy may move in one update, and what to do about the fact that the samples were drawn by a slightly different policy than the one being updated."
+                display: "advantage estimate + trust region + off-policy correction = an RL algorithm for LLMs"
+              - text: "This chapter follows the taxonomy of Lorenzo Xiao's RL reading list, regrouped so that the algorithmic, reward, preference, systems, and agent literatures each read as one thread."
+
+          - heading: "Core RL: PPO → GRPO → DAPO → CISPO"
+            notes:
+              - text: "PPO is the starting point, and its two ideas outlive it: clip the importance ratio so a single batch cannot move the policy arbitrarily far, and subtract a learned baseline so the gradient sees advantage rather than raw return. InstructGPT wires that into the alignment loop — fit a reward model to human preferences, optimise against it with PPO, and penalise KL drift from the SFT policy so the reward model is never queried far from its training distribution."
+              - text: "The value network is the first casualty. It doubles memory, it is hard to fit against a sparse terminal reward, and for a fixed prompt one can simply sample a group of completions and use the group's own statistics as the baseline. That is GRPO:"
+                display: "A_i = (r_i − mean(r_1..r_G)) / std(r_1..r_G)   — a baseline from the group, not from a critic"
+              - text: "DeepSeek-R1 then showed the payoff: run GRPO on verifiable maths and code with a rule-based reward, and long chain-of-thought emerges without any process supervision. Everything after that is repair work on GRPO's details. Dr. GRPO removes the length bias and the standard-deviation normalisation that quietly reweight the objective; DAPO supplies the token-level loss, dynamic sampling and clip-higher tricks that make the recipe reproducible at scale; GSPO moves the importance ratio from tokens to whole sequences."
+              - text: "The most instructive edit is CISPO, in MiniMax-M1. PPO's clip discards the gradient of any token whose ratio strays outside the trust region — and those are exactly the rare, high-entropy tokens (“wait”, “however”, “let me reconsider”) that pivot a reasoning trace. CISPO clips the importance weight but keeps the token in the sum, so the trust region bounds the update's magnitude without deleting its most informative terms."
+              - text: "The 2026 papers reopen the objective itself. MaxRL optimises pass@k rather than mean reward, placing RL and maximum-likelihood on one continuum; DPPO replaces the ratio clip with an explicit total-variation / KL trust region, which is what PPO was approximating all along."
+            papers:
+              - { year: 2017, title: "PPO", note: "Ratio clipping and a trust region; the substrate everything else edits.", grade: "B", url: "https://arxiv.org/abs/1707.06347" }
+              - { year: 2022, title: "InstructGPT", note: "Reward model + PPO + KL penalty. The template for RLHF.", grade: "A-", url: "https://arxiv.org/abs/2203.02155" }
+              - { year: 2024, title: "Revisiting REINFORCE (RLOO)", note: "Leave-one-out baselines make the critic look optional.", grade: "B", url: "https://arxiv.org/abs/2402.14740" }
+              - { year: 2024, title: "DeepSeekMath (GRPO origin)", note: "Group-relative advantage, no value network. Start the story here.", grade: "A", url: "https://arxiv.org/abs/2402.03300", featured: true, tags: ["★"] }
+              - { year: 2025, title: "DeepSeek-R1", note: "Rule-based reward on verifiable tasks; long CoT emerges from RL alone.", grade: "A", url: "https://arxiv.org/abs/2501.12948", featured: true, tags: ["★"] }
+              - { year: 2025, title: "DAPO", note: "An open, reproducible GRPO recipe: token-level loss, dynamic sampling, clip-higher.", grade: "A-", url: "https://arxiv.org/abs/2503.14476" }
+              - { year: 2025, title: "Dr. GRPO", note: "Fixes GRPO's length bias and std normalisation — a two-line diff with a real effect.", grade: "A-", url: "https://openreview.net/forum?id=5PAF7PAY2Y" }
+              - { year: 2025, title: "GSPO", note: "Importance ratio at the sequence level rather than the token level.", grade: "B+", url: "https://arxiv.org/abs/2507.18071" }
+              - { year: 2025, title: "MiniMax-M1 (CISPO)", note: "Clips the weight, keeps the token: high-entropy pivot tokens survive the update.", grade: "A-", url: "https://arxiv.org/abs/2506.13585", featured: true }
+              - { year: 2025, title: "PPO Collapse in Long-CoT", note: "Why value-based PPO destabilises as traces get long.", grade: "B+", url: "https://arxiv.org/abs/2503.01491" }
+              - { year: 2025, title: "SAPO", note: "Another point in the clipping-variant space.", grade: "C", url: "https://arxiv.org/abs/2511.20347" }
+              - { year: 2026, title: "MaxRL", note: "A pass@k objective; places RL and MLE on one continuum.", grade: "B+", url: "https://arxiv.org/abs/2602.02710" }
+              - { year: 2026, title: "DPPO", note: "An explicit TV/KL trust region instead of the ratio clip.", grade: "B+", url: "https://arxiv.org/abs/2602.04879" }
+
+          - heading: "Scaling laws and recipes"
+            notes:
+              - text: "Pre-training has a scaling law; RL post-training is only now getting one. The question is which axis buys performance — model size, prompt count, rollouts per prompt, or gradient steps — and whether the curve saturates."
+              - text: "ProRL and BroRL split the two rollout-side axes cleanly. ProRL scales the number of training steps and argues that RL keeps discovering genuinely new reasoning strategies long past the point where the reward curve looks flat; BroRL scales the number of rollouts per prompt instead, sharpening the advantage estimate rather than taking more of them. ScaleRL then fits the whole thing: a sigmoidal compute–performance curve whose ceiling and rate are set by different design choices, so a recipe can be extrapolated from small runs before the large one is launched."
+              - text: "Qwen3 is the applied counterpart — one model with a thinking and a non-thinking mode, and a thinking budget the user can dial — and is the clearest published account of how the stages compose in a production run."
+            papers:
+              - { year: 2025, title: "ScaleRL — The Art of Scaling RL Compute", note: "Sigmoidal compute curves; predict the large run from small ones.", grade: "A-", url: "https://arxiv.org/abs/2510.13786", featured: true }
+              - { year: 2025, title: "Scaling Behaviors of LLM RL Post-Training", note: "Power law across model scale × data × compute.", grade: "B+", url: "https://arxiv.org/abs/2509.25300" }
+              - { year: 2025, title: "ProRL", note: "Prolonged RL: the steps axis. Read before ScaleRL.", grade: "A-", url: "https://arxiv.org/abs/2505.24864", tags: ["NV"] }
+              - { year: 2025, title: "BroRL", note: "The rollouts axis; complements ProRL.", grade: "B+", url: "https://arxiv.org/abs/2510.01180", tags: ["NV"] }
+              - { year: 2025, title: "Qwen3 Technical Report", note: "Unified thinking / non-thinking model with a thinking budget.", grade: "A-", url: "https://arxiv.org/abs/2505.09388" }
+
+          - heading: "Cascade and stage-wise RL"
+            notes:
+              - text: "A single RL stage over a mixture of domains is not what frontier labs actually run. The Nemotron line stages it: SFT, then RL on maths, then code, then tool use, each stage inheriting the previous policy — and the surprise is that later stages do not erase earlier ones as catastrophically as forgetting would predict, provided the stage order and the data mixture are chosen with care."
+              - text: "Nemotron-Cascade 2 is the payoff — gold-medal performance at IMO, IOI and ICPC from a 30B mixture-of-experts model — and it gets there with on-policy distillation inside the cascade rather than a bigger final RL run."
+            papers:
+              - { year: 2025, title: "AceReason-Nemotron 1.1", note: "SFT and RL synergy for maths and code reasoning.", grade: "B+", url: "https://arxiv.org/abs/2505.16400", tags: ["NV"] }
+              - { year: 2025, title: "Nemotron-Cascade 1", note: "The motivation for staged RL; read as the setup for Cascade 2.", grade: "B+", url: "https://arxiv.org/abs/2512.13607", tags: ["NV"] }
+              - { year: 2026, title: "Nemotron-Cascade 2", note: "IMO/IOI/ICPC gold; 30B MoE; on-policy distillation inside the cascade.", grade: "A", url: "https://arxiv.org/abs/2603.19220", featured: true, tags: ["NV"] }
+              - { year: 2026, title: "Nemotron 3 Super Technical Report", note: "LatentMoE, NVFP4, and simultaneous multi-environment RL.", grade: "A-", url: "https://research.nvidia.com/labs/nemotron/files/NVIDIA-Nemotron-3-Super-Technical-Report.pdf", tags: ["NV"] }
+
+          - heading: "Distillation: on-policy, self, and context"
+            notes:
+              - text: "RL is sample-inefficient because a scalar reward per trajectory is a thin gradient signal. Distillation is dense — every token carries a full teacher distribution — but off-policy SFT on teacher traces trains the student on states it will never visit. On-policy distillation takes both: the student samples the trajectory, the teacher scores it token by token."
+                display: "student samples the states; teacher supplies per-token targets → dense reward, on-policy states"
+              - text: "The Thinking Machines post is the clearest statement of the compute trade-off, and MiMo-V2-Flash is the production form with multiple teachers — the technique underneath Nemotron-Cascade 2. Two 2026 variants push on what the teacher is: in Self-Distilled Reasoner the teacher is the same model granted privileged information the student will not have at test time, and On-Policy Context Distillation compresses a long prompt into weights the same way."
+            papers:
+              - { year: 2025, title: "On-Policy Distillation (Thinking Machines)", note: "The clearest account of the dense-signal / on-policy-state trade-off.", grade: "A", url: "https://thinkingmachines.ai/blog/on-policy-distillation/", featured: true }
+              - { year: 2026, title: "MiMo-V2-Flash", note: "Multi-teacher on-policy distillation at production scale.", grade: "A-", url: "https://arxiv.org/abs/2601.02780" }
+              - { year: 2026, title: "Self-Distilled Reasoner", note: "The teacher is the student, plus privileged information.", grade: "B+", url: "https://arxiv.org/abs/2601.18734" }
+              - { year: 2026, title: "On-Policy Context Distillation", note: "Folds a long context into the weights, on-policy.", grade: "B", url: "https://arxiv.org/abs/2602.12275" }
+
+      - name: "Reward modeling"
+        sections:
+          - heading: "Why the reward is the hard part"
+            notes:
+              - text: "On maths and code the reward is free: run the tests, check the answer. Everywhere else it has to be learned, and a learned reward is an adversary the policy will eventually defeat. Every design below is a bet about which representation of “good” is hardest to hack."
+              - text: "The axis that organises this literature is where the reward is emitted and what it is made of — a scalar head or a token, the final answer or every step, an opaque preference or an explicit rubric."
+                display: "scalar head → generative judge → per-step verifier → explicit rubric"
+
+          - heading: "Generative reward models"
+            notes:
+              - text: "A classical reward model bolts a scalar head onto a transformer and throws away the language modelling head. Generative Verifiers makes the observation that this discards the model's own competence: instead, ask “is this response correct? yes/no” and read the probability of the yes token. Scoring becomes next-token prediction, so it inherits chain-of-thought and majority voting for free."
+              - text: "DeepSeek-GRM pushes further with SPCT, training the judge itself with online RL so that it learns to generate principles before critiquing; RM-R1 makes the reasoning explicit — reason first, score second. HelpSteer3-Preference is the data-side contribution, and P-GenRM conditions the judge on a persona, which is where reward modelling meets personalisation."
+            papers:
+              - { year: 2024, title: "Generative Verifiers: RM as Next-Token Prediction", note: "The origin of the generative RM; yes-token probability plus majority vote.", grade: "A", url: "https://arxiv.org/abs/2408.15240", featured: true }
+              - { year: 2025, title: "DeepSeek-GRM / SPCT", note: "Online RL for the judge; generates principles, then critiques.", grade: "A-", url: "https://arxiv.org/abs/2504.02495" }
+              - { year: 2025, title: "RM-R1: Reward Modeling as Reasoning", note: "Reason first, then score.", grade: "B+", url: "https://arxiv.org/abs/2505.02387" }
+              - { year: 2025, title: "HelpSteer3-Preference", note: "40k preference samples; the data behind an RM-Bench SOTA.", grade: "B+", url: "https://arxiv.org/abs/2505.11475", tags: ["NV"] }
+              - { year: 2026, title: "P-GenRM", note: "A personalised generative reward model.", grade: "B", url: "https://arxiv.org/abs/2602.12116" }
+
+          - heading: "Process reward models"
+            notes:
+              - text: "An outcome reward tells a 400-step derivation that it was wrong, without saying where. A process reward model scores each step, which is a far denser signal — and the question is what a step's score should mean."
+              - text: "Rewarding Progress gives the answer that makes the rest coherent: a process reward should be an advantage, the change in the probability of eventually succeeding contributed by that step. Not “is this step correct” but “did this step help”."
+                display: "PRM(s_t) ≈ A(s_t) = V(s_t) − V(s_{t−1})   — progress, not correctness"
+              - text: "The practical papers then ask how to obtain those labels without humans. Monte-Carlo rollouts from each prefix estimate the value directly; ThinkPRM turns the verifier into a long-CoT reasoner; GenPRM adds test-time generative reasoning to the score; ReasonFlux-PRM supervises step and trajectory jointly. The Qwen lessons paper is the one to read before building any of them — it is largely a catalogue of what silently fails."
+            papers:
+              - { year: 2024, title: "PAV / Rewarding Progress", note: "Process reward = advantage. The conceptual anchor.", grade: "A", url: "https://openreview.net/forum?id=A6Y7AqlzLW", featured: true }
+              - { year: 2025, title: "Lessons of Developing PRMs", note: "What actually works: annotation, stability, evaluation traps.", grade: "A-", url: "https://arxiv.org/abs/2501.07301" }
+              - { year: 2025, title: "ThinkPRM", note: "A long chain-of-thought verifier.", grade: "B+", url: "https://arxiv.org/abs/2504.00125" }
+              - { year: 2025, title: "GenPRM", note: "Test-time generative reasoning inside the PRM.", grade: "B", url: "https://arxiv.org/abs/2504.15221" }
+              - { year: 2025, title: "ReasonFlux-PRM", note: "Trajectory-aware dual supervision over steps and traces.", grade: "B+", url: "https://arxiv.org/abs/2506.18896" }
+              - { year: 2025, title: "R-PRM", note: "Reasoning-driven process supervision.", grade: "C", url: "https://arxiv.org/abs/2503.06266" }
+              - { year: 2026, title: "PRISM", note: "A recent process-supervision variant.", grade: "C", url: "https://arxiv.org/abs/2603.02479" }
+
+          - heading: "Rubrics as rewards"
+            notes:
+              - text: "Preference data compresses a whole judgement into one bit, and that bit is where reward hacking hides. A rubric decomposes it: instead of “A is better than B”, a checklist of criteria, each independently checkable. The reward becomes a weighted sum of satisfied criteria, and it is legible — one can read why a response scored what it scored."
+              - text: "Rubrics as Rewards establishes the format on subjective tasks; OpenRubrics scales rubric generation. The 2026 papers close the loop: Rubric-ARM alternates between improving the rubric generator and the judge, and Golden Goose uses rubrics as the bridge that turns a non-verifiable domain into a verifiable one — which is precisely the move that lets RLVR escape maths and code."
+            papers:
+              - { year: 2025, title: "Rubrics as Rewards (RaR)", note: "Structures subjective preference into checkable criteria.", grade: "A-", url: "https://arxiv.org/abs/2503.11042", featured: true }
+              - { year: 2025, title: "OpenRubrics", note: "Scaling rubric generation.", grade: "B", url: "https://arxiv.org/abs/2504.00831" }
+              - { year: 2026, title: "Rubric-ARM", note: "Alternating optimisation of the rubric generator and the judge.", grade: "B+", url: "https://arxiv.org/abs/2602.01454" }
+              - { year: 2026, title: "Golden Goose", note: "The non-verifiable → verifiable bridge; the load-bearing idea for RLVR beyond maths.", grade: "A-", url: "https://arxiv.org/abs/2601.22975" }
+
+          - heading: "Evaluating reward models"
+            notes:
+              - text: "A reward model that ranks a static preference set well can still be useless as an RL objective, because RL drives the policy off that distribution on purpose. The PPE paper measures that offline–online gap directly, by correlating benchmark accuracy against the downstream quality of the policy it trains — the correlation is weaker than the field assumed."
+              - text: "RewardBench 2 is built around the failure mode rather than around agreement: it asks whether a reward model can be hacked. Long-form RewardBench extends the question to responses long enough that a single scalar has to summarise pages."
+            papers:
+              - { year: 2024, title: "How to Evaluate Reward Models for RLHF (PPE)", note: "The offline–online gap: benchmark rank ≠ downstream policy quality.", grade: "A-", url: "https://arxiv.org/abs/2410.14872", featured: true }
+              - { year: 2024, title: "HelpSteer3", note: "Feedback and edit data; inference-time scaling of the RM.", grade: "B+", url: "https://arxiv.org/abs/2503.04378", tags: ["NV"] }
+              - { year: 2025, title: "RewardBench 2", note: "Built around reward hacking rather than agreement.", grade: "B+", url: "https://arxiv.org/abs/2506.01937" }
+              - { year: 2026, title: "Long-form RewardBench", note: "Reward modelling when the response is pages long.", grade: "B", url: "https://arxiv.org/abs/2603.12963" }
+
+      - name: "RLHF and preference optimization"
+        sections:
+          - heading: "Foundations"
+            notes:
+              - text: "The RLHF pipeline as it was frozen in 2022: supervised fine-tuning, a Bradley–Terry reward model on human preference pairs, then PPO against that reward with a KL penalty. Bai et al. add the safety half — helpfulness and harmlessness as competing objectives, and the HH-RLHF dataset that everyone trained on afterwards."
+              - text: "DPO's insight is that the RLHF optimum has a closed form: the optimal policy is the reference policy reweighted by the exponentiated reward, so the reward can be written in terms of the policy and eliminated. The reward model, the rollouts and the RL loop all disappear into a classification loss on preference pairs."
+                display: "r(x,y) = β·log[ π(y|x) / π_ref(y|x) ] + logZ(x)   — the reward was never a separate object"
+              - text: "Read DPO knowing how it eventually fell short. The derivation is exact, but it is exact for the offline distribution the preference pairs were drawn from; the reward model it implicitly defines is never queried at the states the trained policy visits."
+            papers:
+              - { year: 2022, title: "InstructGPT", note: "The canonical three-stage pipeline.", grade: "A-", url: "https://arxiv.org/abs/2203.02155" }
+              - { year: 2022, title: "Bai et al. — HH-RLHF", note: "Helpfulness vs harmlessness, and the dataset that defined the era.", grade: "B+", url: "https://arxiv.org/abs/2204.05862" }
+              - { year: 2023, title: "DPO", note: "Preference optimisation with no reward model and no rollouts. Know why it fell short.", grade: "A", url: "https://arxiv.org/abs/2305.18290", featured: true, tags: ["★"] }
+
+          - heading: "From simplification back to online RL"
+            notes:
+              - text: "The two years after DPO run in one direction and then reverse. First simplification: SimPO drops the reference model entirely and length-normalises the implicit reward, which is roughly the endpoint of how much can be removed."
+              - text: "Then the reversal. Online Iterative RLHF is the turning point — regenerate the preference pairs from the current policy each round, and the gap to offline DPO is large enough that the field concedes the point: what mattered was never the RL algorithm, it was that the data is on-policy. Asynchronous RLHF makes the resulting generation cost tolerable by decoupling rollout from training, and OLMo 3 is the fully open reproduction of the whole SFT → DPO → RL sequence, checkpoints and data included."
+            papers:
+              - { year: 2024, title: "SimPO", note: "Reference-free, length-normalised DPO. The simplification endpoint.", grade: "B+", url: "https://arxiv.org/abs/2405.14734" }
+              - { year: 2024, title: "Online Iterative RLHF", note: "The turning point: on-policy preference data ≫ offline DPO.", grade: "A-", url: "https://arxiv.org/abs/2405.07863", featured: true }
+              - { year: 2025, title: "Asynchronous RLHF", note: "Decouples generation from training to pay for going online.", grade: "B+", url: "https://openreview.net/forum?id=FhTAG591Ve" }
+              - { year: 2025, title: "OLMo 3", note: "SFT → DPO → RL → RL-Zero, fully open: data, code, checkpoints.", grade: "A-", url: "https://arxiv.org/abs/2512.13961" }
+
+          - heading: "Multi-turn, social, and creative RLHF"
+            notes:
+              - text: "Verifiable rewards ended at the boundary of maths and code, and this is the literature trying to cross it. A conversation has no unit test; a good short story has no answer key; a role-play persona is judged by consistency with a character rather than by correctness."
+              - text: "The shared move is to decompose the reward into a part that can be verified and a part that must be judged. RLMR is the cleanest example — an objective constraint verifier for the instructions (“exactly four stanzas, no adverbs”) plus a subjective aesthetic reward model for everything else — and PPP does the same for agents, scoring task success, proactivity and personalisation as three separate objectives against the UserVille benchmark. RL from User Conversations conditions the reward on a persona so that “good” is defined per user, and HER, OMAR and Social-R1 carry the idea into role-play and social reasoning."
+            papers:
+              - { year: 2025, title: "RLMR: Mixed Rewards for Creative Writing", note: "Objective constraint verifier + subjective aesthetic RM.", grade: "A-", url: "https://arxiv.org/abs/2508.18642", featured: true }
+              - { year: 2025, title: "PPP: Proactive and Personalized Agents", note: "Three-objective RL; the UserVille benchmark.", grade: "B+", url: "https://arxiv.org/abs/2511.02208" }
+              - { year: 2025, title: "RL from User Conversations", note: "Persona-conditioned rewards learned from real dialogue.", grade: "B+", url: "https://arxiv.org/abs/2509.25137" }
+              - { year: 2026, title: "HER: RL for Role-playing", note: "Dual-layer thinking for in-character reasoning.", grade: "B", url: "https://arxiv.org/abs/2601.21459" }
+              - { year: 2026, title: "OMAR — One Model All Roles", note: "One policy across many personas.", grade: "C", url: "https://arxiv.org/abs/2602.03109" }
+              - { year: 2026, title: "Social-R1", note: "RL for social reasoning.", grade: "C", url: "https://arxiv.org/abs/2603.09249" }
+
+      - name: "Systems — making RL runs survive"
+        sections:
+          - heading: "Synchronous versus asynchronous training"
+            notes:
+              - text: "An RL step is two workloads with opposite hardware profiles: generation is memory-bandwidth bound and wildly variable in length, training is compute bound and uniform. Running them in lockstep means every GPU waits for the longest rollout in the batch, and with long chain-of-thought that tail is brutal."
+                display: "sync: idle GPUs waiting on the longest trajectory   |   async: stale gradients from an older policy"
+              - text: "Asynchrony buys the utilisation back and pays for it in staleness — the trajectories were generated by a policy some steps behind the one being updated, which is off-policy data that PPO's importance ratio was only ever meant to correct for locally. AReaL and slime are the systems that make the trade concrete; A-3PO decouples PPO explicitly; StaleFlow and GAC are the 2026 attempts to bound the staleness rather than tolerate it. Magistral is worth reading as the counterpoint: a synchronous run, done carefully, at scale."
+            papers:
+              - { year: 2025, title: "AReaL", note: "A fully asynchronous RL system for reasoning models.", grade: "A-", url: "https://arxiv.org/abs/2505.24298" }
+              - { year: 2025, title: "slime (SGLang RL)", note: "The engineering of a rollout–training split, written up plainly.", grade: "B+", url: "https://lmsys.org/blog/2025-07-09-slime/" }
+              - { year: 2025, title: "Magistral", note: "Mistral's reasoning RL stack; the synchronous counterpoint.", grade: "B+", url: "https://arxiv.org/abs/2506.10910" }
+              - { year: 2025, title: "A-3PO", note: "Decoupled PPO — staleness as an explicit design dimension.", grade: "B", url: "https://arxiv.org/abs/2512.06547" }
+              - { year: 2026, title: "StaleFlow", note: "Bounding staleness rather than tolerating it.", grade: "B", url: "https://arxiv.org/abs/2601.12784" }
+              - { year: 2026, title: "GAC", note: "A recent asynchronous-RL system paper.", grade: "C", url: "https://arxiv.org/abs/2603.01501" }
+
+          - heading: "Train–inference mismatch and RL stability"
+            notes:
+              - text: "This is the subtopic that surprises people. The rollout is produced by an inference engine (vLLM, SGLang) and the gradient is computed by a training engine (Megatron, FSDP). Mathematically they evaluate the same function. Numerically they do not — different kernels, different batching, different reduction orders — so the probability the trainer assigns to a token it supposedly just sampled is not quite the probability the sampler used."
+                display: "π_train(y|x) ≠ π_infer(y|x)  ⇒  the importance ratio is wrong before training even starts"
+              - text: "The consequence is silent: the run is off-policy without anyone asking for it, the ratio drifts, and eventually the policy collapses. The fixes split into three groups. Make inference deterministic (the Thinking Machines post explains that the culprit is batch-size-dependent reduction order, not atomics; SGLang implements it). Correct the mismatch statistically with importance sampling — which the 2025 “Stabilizing RL with LLMs” paper shows is also the theory behind Routing Replay, the trick that fixes MoE runs by pinning the router's expert choices between rollout and training."
+              - text: "Or change the numerics. “Give Me FP32 or Give Me Death” takes precision seriously; the FP16 paper is the counter-intuitive one, arguing that consistency of the train/infer path matters more than the width of the float — BF16's wider exponent and coarser mantissa hurt more than FP16 helps."
+            papers:
+              - { year: 2025, title: "Defeating Nondeterminism in LLM Inference", note: "Batch-invariant kernels; the reduction order is the bug.", grade: "A", url: "https://thinkingmachines.ai/blog/defeating-nondeterminism-in-llm-inference/", featured: true, tags: ["★"] }
+              - { year: 2025, title: "Stabilizing RL with LLMs", note: "Importance-sampling correction, and the theory behind Routing Replay.", grade: "A-", url: "https://arxiv.org/abs/2512.01374", featured: true }
+              - { year: 2025, title: "R3: MoE Routing Replay", note: "Pin the router between rollout and training; MoE RL stops collapsing.", grade: "A-", url: "https://arxiv.org/abs/2510.11370" }
+              - { year: 2025, title: "Give Me FP32 or Give Me Death", note: "Precision as a first-class RL variable.", grade: "B+", url: "https://arxiv.org/abs/2506.09501" }
+              - { year: 2025, title: "FP16 Mismatch", note: "Counter-intuitive: train/infer path consistency beats float width.", grade: "B+", url: "https://arxiv.org/abs/2510.26788" }
+              - { year: 2025, title: "SGLang Deterministic Inference", note: "The determinism fix, shipped.", grade: "B", url: "https://lmsys.org/blog/2025-09-22-sglang-deterministic/" }
+              - { year: 2025, title: "Tensor-Parallel Size and Determinism", note: "The same reduction-order problem, across TP degrees.", grade: "B", url: "https://arxiv.org/abs/2511.17826" }
+              - { year: 2025, title: "Unified FP8 for RL (SGLang)", note: "FP8 rollouts without breaking the ratio.", grade: "B", url: "https://lmsys.org/blog/2025-11-25-fp8-rl/" }
+              - { year: 2025, title: "DeepSeek-V3.2", note: "Sparse attention and the RL infrastructure around it.", grade: "B+", url: "https://arxiv.org/abs/2512.02556" }
+
+          - heading: "Long-context RL"
+            notes:
+              - text: "An agent that runs for fifty tool calls accumulates a context longer than anything it was trained on, and the gradient has to flow back through all of it. Context-Folding compresses completed sub-tasks out of the working context so the horizon stays bounded, which turns a long-horizon RL problem back into a tractable one; QwenLong-L1.5 attacks the same wall from the training side."
+            papers:
+              - { year: 2025, title: "Context-Folding", note: "Fold finished sub-tasks out of context; bound the horizon.", grade: "A-", url: "https://arxiv.org/abs/2510.11967" }
+              - { year: 2025, title: "QwenLong-L1.5", note: "Long-context reasoning trained with RL.", grade: "B+", url: "https://arxiv.org/abs/2512.12967" }
+
+      - name: "Tasks and agents"
+        sections:
+          - heading: "Where the reward comes from"
+            notes:
+              - text: "Agentic RL is the same algorithm with a harder environment: the episode now interleaves the model's tokens with an environment's — a tool result, a page, a compiler error — and the policy must not be trained on tokens it did not generate. Everything else is a question of where the reward comes from, and the sections below are ordered by how cheaply it can be obtained."
+                display: "test suite → search answer key → GUI state check → human/model judge"
+
+          - heading: "Coding agents"
+            notes:
+              - text: "The best-rewarded domain there is: the test suite is the environment, the reward, and the verifier at once. The difficulty moves entirely into the rollout — a SWE-bench episode means cloning a repo, running a build, and executing a test harness inside a sandbox, thousands of times in parallel."
+            papers:
+              - { year: 2026, title: "Qwen3-Coder-Next", note: "Scaling RL on real repository tasks.", grade: "B+", url: "https://arxiv.org/abs/2603.00729" }
+              - { year: 2026, title: "SWE-Master", note: "An agentic RL recipe for software engineering.", grade: "B+", url: "https://arxiv.org/abs/2602.03411" }
+
+          - heading: "Deep research and search agents"
+            notes:
+              - text: "Search-R1 is the paper to read first, because it settles the mechanics: interleave retrieved passages into the rollout, mask the retrieved tokens out of the loss, and reward the final answer only. That masking rule generalises to every tool-using agent below."
+              - text: "The deep-research systems then scale the horizon from three retrievals to hundreds, at which point the hard problem is synthetic task generation — nobody has a labelled dataset of research questions whose answers are checkable — and Tongyi DeepResearch is largely an answer to that."
+            papers:
+              - { year: 2025, title: "Search-R1", note: "Retrieved tokens masked out of the loss; outcome reward only. The template.", grade: "A", url: "https://arxiv.org/abs/2503.09516", featured: true, tags: ["★"] }
+              - { year: 2025, title: "Tongyi DeepResearch", note: "Synthetic task generation for long-horizon research agents.", grade: "A-", url: "https://arxiv.org/abs/2510.24701" }
+              - { year: 2026, title: "Yunque DeepResearch", note: "A recent deep-research training stack.", grade: "B", url: "https://arxiv.org/abs/2601.19578" }
+              - { year: 2026, title: "How to Train a Deep Research Agent", note: "Ablations over the recipe rather than a new model.", grade: "B+", url: "https://arxiv.org/abs/2602.19526" }
+
+          - heading: "Computer-use and GUI agents"
+            notes:
+              - text: "Here the environment is a real operating system, so a rollout costs a virtual machine and an episode can be destructive. The reward is a state check — did the file get saved, did the form submit — and the papers are mostly about making thousands of parallel VMs cheap enough that RL is affordable at all."
+            papers:
+              - { year: 2025, title: "ComputerRL", note: "Scaling OS-level environments for RL.", grade: "B+", url: "https://arxiv.org/abs/2508.14040" }
+              - { year: 2026, title: "OmegaUse", note: "A recent computer-use agent trained end to end.", grade: "B", url: "https://arxiv.org/abs/2601.20380" }
+              - { year: 2026, title: "GUI-Libra", note: "GUI agent RL with calibrated rewards.", grade: "B", url: "https://arxiv.org/abs/2602.22190" }
+
+          - heading: "Tool-use RL"
+            notes:
+              - text: "ToolRL is the reward-design textbook: it decomposes the reward into format correctness, tool-name correctness and argument correctness, and shows what each component buys. Nemotron-Tool-N1 argues the opposite and is the more interesting read — a binary reward on whether the call succeeded, with no supervision of the reasoning that produced it, generalises better than the decomposed version, which the model learns to satisfy without learning to call tools well."
+              - text: "ReTool supplies the missing first stage: cold-start on synthesised tool traces so that the outcome-reward RL has something non-zero to reinforce."
+            papers:
+              - { year: 2025, title: "ToolRL", note: "Decomposed reward design for tool calls; read as the thesis.", grade: "A-", url: "https://arxiv.org/abs/2504.13958" }
+              - { year: 2025, title: "Nemotron-Tool-N1", note: "Binary reward, no reasoning supervision — and it generalises better.", grade: "A-", url: "https://arxiv.org/abs/2505.00949", featured: true, tags: ["NV"] }
+              - { year: 2025, title: "ReTool", note: "Cold-start synthesis, then outcome-reward RL.", grade: "B+", url: "https://arxiv.org/abs/2504.09442" }
+
+          - heading: "Generalist agent RL frameworks"
+            notes:
+              - text: "Once the environment count grows past a handful, the bottleneck is orchestration rather than optimisation: heterogeneous environments have different latencies, so a synchronous batch stalls on the slowest one. AGENTRL answers with asynchrony and cross-policy sampling; ProRL Agent turns rollout into a service that the trainer calls; RLAnything goes furthest and optimises the environment, the policy and the reward model jointly."
+            papers:
+              - { year: 2025, title: "AGENTRL", note: "Asynchronous multi-environment agent RL with cross-policy sampling.", grade: "A-", url: "https://arxiv.org/abs/2510.04206" }
+              - { year: 2025, title: "WebAgent-R1", note: "End-to-end RL for web agents.", grade: "B+", url: "https://arxiv.org/abs/2505.16421" }
+              - { year: 2025, title: "Kimi K2.5 Agent Swarm", note: "Multi-agent orchestration for agentic tasks.", grade: "B", url: "https://moonshotai.github.io/Kimi-K2.5/" }
+              - { year: 2026, title: "RLAnything", note: "Joint optimisation of environment, policy and reward model.", grade: "B+", url: "https://arxiv.org/abs/2602.02488" }
+              - { year: 2026, title: "ProRL Agent", note: "Rollout-as-a-service for multi-turn agent RL.", grade: "B+", url: "https://arxiv.org/abs/2603.18815", tags: ["NV"] }
+
+          - heading: "Why agent RL fails, and self-evolution"
+            notes:
+              - text: "RAGEN names the characteristic failure: the Echo Trap. Early in training the policy finds one reasoning pattern that is rewarded, entropy collapses onto it, gradient variance spikes, and the run locks into a local optimum that looks like convergence on the reward curve. It is the agentic analogue of the entropy collapse that CISPO and clip-higher were designed to postpone."
+              - text: "The deeper cause is credit assignment: a fifty-step episode with one terminal reward gives every step the same advantage. iStar and AgentPRM both push a process reward into the agent setting — implicitly from the outcome, or explicitly from Monte-Carlo rollouts. Absolute Zero is the outlier and the one to end on: the model proposes its own tasks and verifies them with a code executor, so the data, the curriculum and the reward are all generated by the policy itself, and no human-authored dataset appears anywhere in the loop."
+            papers:
+              - { year: 2025, title: "RAGEN", note: "The Echo Trap: entropy collapse and why agent RL runs stall.", grade: "A-", url: "https://arxiv.org/abs/2504.20073", featured: true }
+              - { year: 2025, title: "AgentPRM", note: "Monte-Carlo rollout actor–critic for step-level credit.", grade: "B+", url: "https://arxiv.org/abs/2502.10325" }
+              - { year: 2025, title: "Absolute Zero", note: "Zero-data self-play: the policy proposes and verifies its own tasks.", grade: "A", url: "https://arxiv.org/abs/2505.03335", featured: true, tags: ["★"] }
+              - { year: 2026, title: "iStar", note: "An implicit PRM for agentic credit assignment.", grade: "B+", url: "https://arxiv.org/abs/2601.15839" }
 
   - name: "Topic 1 · Spatial reasoning"
     subtopics:
@@ -244,12 +489,164 @@ categories:
       - { name: "Spatial-aware RL", papers: [] }
       - { name: "Promising research directions", papers: [] }
 
-  - name: "Topic 2 · LLM explainability"
+  - name: "Topic 2 · LLM interpretability"
     subtopics:
-      - { name: "Attribution methods", papers: [] }
-      - { name: "Sparse autoencoders", papers: [] }
-      - { name: "Linear representation hypothesis", papers: [] }
-      - { name: "Circuits", papers: [] }
+      - name: "Background: the object being interpreted"
+        sections:
+          - heading: "Overview"
+            notes:
+              - text: "Interpretability asks a question the benchmark cannot: not whether the model is right, but what computation produced the answer. The field is worth reading as a single argument, because every method below is constrained by one architectural fact — a transformer has no private memory. Every component reads from and writes to the same residual stream."
+                display: "x_{l+1} = x_l + attn_l(x_l) + mlp_l(x_l)   — components communicate only by adding to one shared vector"
+              - text: "Two consequences follow, and they organise the entire literature. Because the stream is additive, a hidden state is a sum of contributions that can be attributed to individual heads, neurons and layers. And because the unembedding W_U is applied to that same stream at the end, any intermediate state can be projected into vocabulary space and read as a distribution over tokens — the logit lens, and the reason so much of interpretability is legible at all."
+              - text: "The unit of analysis is the axis along which this chapter is organised. One can interrogate the representation (probing, inspection), the component that wrote it (heads, MLPs, neurons), the feature it encodes (superposition, sparse autoencoders), or the subgraph that computes a behaviour end to end (circuits). Each unit turns out to be leakier than the one before it hoped."
+              - text: "The organisation and reading lists here follow the Interpretability of Large Language Models course (0368.4264) at Tel Aviv University, developed by Mor Geva and Daniela Gottesman, which pairs each week's papers with a Colab exercise."
+            papers:
+              - { title: "llm-interp-tau — course repository", note: "Schedule, reading lists, and hands-on exercises with solutions.", grade: "A", url: "https://github.com/mega002/llm-interp-tau", featured: true }
+              - { year: 2020, title: "Interpreting GPT: the logit lens", note: "Project any hidden state through W_U and read it as a next-token distribution.", grade: "A-", url: "https://www.lesswrong.com/posts/AcKRB8wDpdaN6v6ru/interpreting-gpt-the-logit-lens", featured: true }
+              - { year: 2024, title: "The Quest for the Right Mediator", note: "A survey that puts causal interpretability on a common theoretical footing; read it to know what a “unit” buys you.", grade: "B+", url: "https://arxiv.org/abs/2408.01416" }
+
+      - name: "Reading representations — probing and inspection"
+        sections:
+          - heading: "Probing: what is encoded"
+            notes:
+              - text: "The oldest method and still the entry point. Freeze the model, extract a hidden state, and fit a small supervised classifier from that state to some property — part of speech, syntax tree depth, the latitude of a city. If the probe succeeds, the property is linearly recoverable from the representation."
+                display: "h_l  →  linear probe  →  property.   Probe accuracy is a claim about the representation, not about the model's behaviour."
+              - text: "The structural probe is the elegant version: rather than classifying a label, it learns a linear transformation under which squared distance between word vectors reproduces the parse-tree distance between the words. Syntax is not a label read off a vector, it is a geometry the vector space already has. Space and Time then finds the same thing for the world — literal linear directions for latitude, longitude and date, with individual neurons that track them."
+              - text: "The standard caveat is that a sufficiently expressive probe can learn the property rather than find it, so probe accuracy alone establishes correlation and nothing more. The subtler caveat comes from the bonus paper: not every feature is a direction. Some are irreducibly multi-dimensional — the days of the week live on a circle — and a linear probe that succeeds on them is measuring a projection of something it has mischaracterised."
+            papers:
+              - { year: 2019, title: "A Structural Probe for Finding Syntax in Word Representations", note: "Syntax as a geometry: a linear map under which vector distance is parse-tree distance.", grade: "A", url: "https://aclanthology.org/N19-1419/", featured: true }
+              - { year: 2023, title: "Language Models Represent Space and Time", note: "Linear directions for place and date, plus neurons that read them.", grade: "A-", url: "https://arxiv.org/abs/2310.02207" }
+              - { year: 2024, title: "Not All Language Model Features Are One-Dimensionally Linear", note: "Circular features for days and months; the linear-direction assumption has exceptions.", grade: "B+", url: "https://arxiv.org/abs/2405.14860" }
+
+          - heading: "Inspecting representations: making the model explain itself"
+            notes:
+              - text: "A probe needs a labelled property, which means you can only look for what you already suspect. The alternative is to let the model decode its own states into natural language. Take a hidden state from one forward pass and paste it into a different prompt — an inspection prompt — and read what the model then generates."
+                display: "patch h from a source run into a target prompt, then let the model talk: the continuation is the explanation"
+              - text: "Patchscopes is the framework that shows the logit lens, activation patching and a dozen ad-hoc methods are all instances of this one operation, differing only in which prompt receives the state and whether the layer index is preserved. SelfIE and LatentQA push the same idea toward instruction following, training the model to answer questions about an injected activation."
+              - text: "Language Model Inversion sharpens the security-flavoured corollary. The next-token distribution over a full vocabulary is a surprisingly high-bandwidth channel, and a trained inverter can recover a large fraction of the hidden system prompt from it. Representations do not merely encode the property you probed for; they encode the input, more completely than one would like."
+            papers:
+              - { year: 2024, title: "Patchscopes", note: "One framework — patch a state into an inspection prompt — that subsumes the logit lens and activation patching.", grade: "A", url: "https://arxiv.org/abs/2401.06102", featured: true, tags: ["★"] }
+              - { year: 2023, title: "Language Model Inversion", note: "Recover the hidden prompt from the next-token distribution alone.", grade: "A-", url: "https://arxiv.org/abs/2311.13647" }
+              - { year: 2024, title: "SelfIE: Self-Interpretation of LLM Embeddings", note: "Get the model to describe its own embeddings in words.", grade: "B+", url: "https://arxiv.org/abs/2403.10949" }
+              - { year: 2024, title: "LatentQA", note: "Train a decoder to answer natural-language questions about activations.", grade: "B", url: "https://arxiv.org/abs/2412.08686" }
+
+      - name: "Components — heads, MLPs, neurons"
+        sections:
+          - heading: "Attention heads"
+            notes:
+              - text: "A head is usually studied through its attention pattern on some input, which makes every claim about it input-dependent. The parameter-space view asks the harder question: what does this head do, before it sees any data? Multiply its OV matrix by the embedding and unembedding matrices and the result is a vocabulary-to-vocabulary map that can be read directly — this head copies, this one maps a country to its capital."
+                display: "E · W_OV · W_U  →  a token-to-token map, computable from weights alone"
+              - text: "Induction heads are the canonical finding and the one to internalise: a two-head circuit that, having seen the bigram [A][B] earlier in the context, attends from a later [A] back to the token that followed it and copies [B]. That pattern is the mechanistic substrate of in-context learning, and its formation is visible as a phase change in the loss curve."
+              - text: "Talking Heads is the modern refinement. Heads do not just attend, they communicate: an early head writes into a low-rank subspace of the residual stream that a later head's query matrix reads out of, so the pair implements a composition neither performs alone. The residual stream is a shared bus, and its bandwidth is allocated in subspaces."
+            papers:
+              - { year: 2022, title: "In-context Learning and Induction Heads", note: "The circuit behind in-context learning, and the phase change that forms it.", grade: "A", url: "https://transformer-circuits.pub/2022/in-context-learning-and-induction-heads/index.html", featured: true, tags: ["★"] }
+              - { year: 2024, title: "Inferring Functionality of Attention Heads from their Parameters", note: "Read a head's function off its weights, with no input at all.", grade: "A-", url: "https://arxiv.org/abs/2412.11965" }
+              - { year: 2024, title: "Talking Heads: Inter-layer Communication", note: "Heads write to and read from low-rank subspaces of the residual stream.", grade: "A-", url: "https://arxiv.org/abs/2406.09519", featured: true }
+              - { year: 2022, title: "Analyzing Transformers in Embedding Space", note: "Project every parameter matrix into vocabulary space and interpret it there.", grade: "B+", url: "https://arxiv.org/abs/2209.02535" }
+              - { year: 2024, title: "Attention Heads of Large Language Models: A Survey", note: "A map of the named heads: induction, copy-suppression, name-mover, and the rest.", grade: "B", url: "https://arxiv.org/abs/2409.03752" }
+
+          - heading: "MLP layers"
+            notes:
+              - text: "Two thirds of the parameters sit in the feed-forward blocks, and for years they were treated as an unstructured nonlinearity. Key-Value Memories is the paper that changed that, and it is the single most useful reframing in this chapter: the first weight matrix is a bank of pattern detectors, the second is a bank of vocabulary distributions, and the layer retrieves the second by matching the first."
+                display: "FF(x) = f(x · K^T) · V   — K rows detect input patterns, V rows write distributions over tokens"
+              - text: "The follow-up makes the output side concrete: each V row, projected through the unembedding, promotes a human-readable set of concepts, and the layer's output is a weighted sum of those promotions. An MLP is an additive edit to the model's next-token belief, which is why factual recall lives here."
+              - text: "The recent turn is that a neuron is the wrong basis. Semi-nonnegative matrix factorisation decomposes MLP activations into features that respect the layer's structure — nonnegative activations, unconstrained directions — and recovers cleaner units than either raw neurons or a sparse autoencoder trained on the output, because it factorises the computation rather than the residual stream."
+            papers:
+              - { year: 2020, title: "Transformer Feed-Forward Layers Are Key-Value Memories", note: "The reframing the rest of the field is built on.", grade: "A", url: "https://arxiv.org/abs/2012.14913", featured: true, tags: ["★"] }
+              - { year: 2022, title: "FF Layers Build Predictions by Promoting Concepts in Vocabulary Space", note: "The value side, read through the unembedding.", grade: "A-", url: "https://arxiv.org/abs/2203.14680" }
+              - { year: 2025, title: "Decomposing MLP Activations via Semi-Nonnegative Matrix Factorization", note: "Factorise the computation, not the residual stream.", grade: "B+", url: "https://arxiv.org/abs/2506.10920" }
+              - { year: 2024, title: "Interpreting Context Look-ups: Attention–MLP Interactions", note: "How the two component types compose on a real task.", grade: "B", url: "https://arxiv.org/abs/2402.15055" }
+
+          - heading: "Neurons — are they the right unit?"
+            notes:
+              - text: "The neuron is the obvious unit and the wrong one. Sparse probing over a large neuron set finds genuinely monosemantic neurons — a French-language neuron, a base-64 neuron — but it also finds that most concepts are spread across many neurons and most neurons fire for several unrelated concepts. That is polysemanticity, and it is not a training defect. It is what a model does when it needs to represent more features than it has dimensions."
+                display: "n features ≫ d dimensions  ⇒  features stored as almost-orthogonal directions, not as axes: superposition"
+              - text: "Confidence Regulation Neurons is the best existence proof that some neurons are nonetheless real and mechanistically legible: entropy neurons that write into the null space of the unembedding, changing the softmax temperature without touching the ranking, and token-frequency neurons that shift toward the unigram prior when the model is uncertain. They regulate confidence rather than content."
+              - text: "The two cautionary papers are worth the time. The BERT interpretability illusion shows that a direction which looks monosemantic on one dataset is polysemantic across datasets — the coherence was in the data, not the neuron. And Dead, N-gram, Positional finds that a large fraction of neurons in a trained model never activate at all."
+            papers:
+              - { year: 2023, title: "Finding Neurons in a Haystack: Sparse Probing", note: "Monosemantic neurons exist; superposition is the norm.", grade: "A-", url: "https://arxiv.org/abs/2305.01610", featured: true }
+              - { year: 2024, title: "Confidence Regulation Neurons", note: "Entropy neurons act on the null space of W_U: temperature, not ranking.", grade: "A-", url: "https://arxiv.org/abs/2406.16254" }
+              - { year: 2021, title: "An Interpretability Illusion for BERT", note: "Monosemanticity that is an artefact of the probing dataset.", grade: "B+", url: "https://arxiv.org/abs/2104.07143" }
+              - { year: 2023, title: "Neurons in LLMs: Dead, N-gram, Positional", note: "A census of what neurons actually do; many do nothing.", grade: "B", url: "https://arxiv.org/abs/2309.04827" }
+
+      - name: "Features — superposition, sparse autoencoders, descriptions"
+        sections:
+          - heading: "Feature representations"
+            notes:
+              - text: "If features are directions and there are more of them than dimensions, then the right unit is neither the neuron nor the layer but the overcomplete dictionary the model is implicitly using. Train a sparse autoencoder on the residual stream — encode to a much wider space, force sparsity, decode back — and the dictionary elements are the features."
+                display: "h ≈ Σ_i a_i(h) · d_i,   a sparse, non-negative, and dim(d) ≫ dim(h)"
+              - text: "The 2023 SAE paper is where this stopped being theory. Its features are more monosemantic than neurons by automated and human evaluation, and — the load-bearing result — they are causally usable: ablating a feature changes exactly the behaviour its description predicts."
+              - text: "The geometry papers ask what structure the dictionary has. The Linear Representation Hypothesis gives the formal statement, using a causal inner product under which unrelated concepts are genuinely orthogonal. Categorical and Hierarchical Concepts then finds that hierarchy is geometry: a categorical concept like {mammal, bird, fish} is a simplex, and “is-a” relations between a parent and its children appear as orthogonality between the parent direction and the child simplex. Transcoders extend the machinery from the stream to the MLP, which is what makes feature-level circuits tractable."
+            papers:
+              - { year: 2023, title: "Sparse Autoencoders Find Highly Interpretable Features", note: "The paper that made SAEs the default unit; features are causally usable, not just legible.", grade: "A", url: "https://arxiv.org/abs/2309.08600", featured: true, tags: ["★"] }
+              - { year: 2024, title: "The Geometry of Categorical and Hierarchical Concepts", note: "Hierarchy is orthogonality; categories are simplices.", grade: "A-", url: "https://arxiv.org/abs/2406.01506" }
+              - { year: 2023, title: "The Linear Representation Hypothesis and the Geometry of LLMs", note: "The causal inner product that makes “direction” well defined.", grade: "A-", url: "https://arxiv.org/abs/2311.03658" }
+              - { year: 2024, title: "Transcoders Find Interpretable LLM Feature Circuits", note: "Sparse dictionaries for the MLP, so circuits can be drawn over features.", grade: "B+", url: "https://arxiv.org/abs/2406.11944" }
+
+          - heading: "Describing features"
+            notes:
+              - text: "A dictionary of thirty million features is not an explanation until each one has a name, and only a language model can afford to write them. The pipeline is the same everywhere: collect the inputs that activate a feature most strongly, ask an LLM to describe what they share, then score the description by whether a second model can use it to predict activations it has not seen."
+              - text: "Automatically Interpreting Millions of Features is the scaled, open version, and it is honest about the cost and the failure rate. The important critique is Output-Centric Feature Descriptions: describing a feature by what activates it is only half the story, and often the less useful half. A feature is a term in a sum that ends at the unembedding, so what it does to the output — which tokens it promotes when you steer with it — is frequently a better description than what turns it on. The two views disagree more often than the field assumed."
+              - text: "Rigorously Assessing Natural Language Explanations supplies the evaluation discipline, distinguishing a description that merely correlates with activation from one that supports intervention. And SAEs Are Good for Steering closes the loop: the features work, provided you select them by their causal effect rather than by the plausibility of their description."
+            papers:
+              - { year: 2024, title: "Automatically Interpreting Millions of Features in LLMs", note: "The auto-interpretability pipeline at scale, with its failure rate reported.", grade: "A-", url: "https://arxiv.org/abs/2410.13928" }
+              - { year: 2025, title: "Enhancing Automated Interpretability with Output-Centric Feature Descriptions", note: "Describe a feature by what it promotes, not only by what activates it.", grade: "A-", url: "https://arxiv.org/abs/2501.08319", featured: true }
+              - { year: 2023, title: "Language models can explain neurons in language models", note: "The original OpenAI auto-interp result.", grade: "B+", url: "https://openai.com/index/language-models-can-explain-neurons-in-language-models/" }
+              - { year: 2023, title: "Rigorously Assessing Natural Language Explanations of Neurons", note: "Correlational description vs causal claim; how to tell them apart.", grade: "B+", url: "https://arxiv.org/abs/2309.10312" }
+              - { year: 2025, title: "SAEs Are Good for Steering — If You Select the Right Features", note: "Select by causal effect, not by how good the description reads.", grade: "B", url: "https://arxiv.org/abs/2505.20063" }
+
+      - name: "Mechanisms — circuits, binding, factual recall"
+        sections:
+          - heading: "Circuit discovery"
+            notes:
+              - text: "A circuit is the subgraph of components that suffices to compute one behaviour. The method that finds it is causal rather than correlational: run the model on a clean prompt and a corrupted one, then patch activations from one run into the other and measure what the output does. A component whose patch restores the behaviour is in the circuit."
+                display: "clean run − corrupted run, patch component c:  Δ logit ⇒ c is causally responsible"
+              - text: "Indirect Object Identification is the worked example everybody starts from — twenty-six heads in GPT-2 small, organised into duplicate-token heads, S-inhibition heads and name-mover heads, with a copy-suppression mechanism nobody predicted. It is also the paper that revealed how much labour this costs, which is why ACDC and its position-aware successor try to automate the search."
+              - text: "Have Faith in Faithfulness is the necessary corrective. Two circuits found by different methods can overlap heavily in components and still implement different mechanisms, so component overlap is the wrong metric; what must be checked is whether the circuit alone, ablated from everything else, still reproduces the behaviour. Circuit Component Reuse is the encouraging counterpart: the same components are recruited across tasks, so the inventory of mechanisms may be far smaller than the inventory of behaviours."
+            papers:
+              - { year: 2022, title: "Interpretability in the Wild: a Circuit for IOI in GPT-2 small", note: "The canonical end-to-end circuit, copy-suppression and all.", grade: "A", url: "https://arxiv.org/abs/2211.00593", featured: true, tags: ["★"] }
+              - { year: 2024, title: "Have Faith in Faithfulness", note: "Component overlap is not mechanism identity. The methodological check.", grade: "A-", url: "https://arxiv.org/abs/2403.17806", featured: true }
+              - { year: 2023, title: "Towards Automated Circuit Discovery (ACDC)", note: "Automating the patch-and-prune search.", grade: "B+", url: "https://arxiv.org/abs/2304.14997" }
+              - { year: 2025, title: "Position-aware Automatic Circuit Discovery", note: "Circuits that respect token position, not just component identity.", grade: "B", url: "https://arxiv.org/abs/2502.04577" }
+              - { year: 2023, title: "Circuit Component Reuse Across Tasks", note: "The same heads, recruited by different behaviours.", grade: "B+", url: "https://arxiv.org/abs/2310.08744" }
+
+          - heading: "Binding mechanisms"
+            notes:
+              - text: "“Alice is in the kitchen, Bob is in the garden. Where is Bob?” Answering requires the model to keep two entity–attribute pairs distinct, which is the variable-binding problem that symbolic architectures got for free and connectionist ones never did."
+              - text: "The answer is geometric and slightly startling. The model assigns each entity–attribute pair a shared binding ID — a direction added to both the entity's and the attribute's representation — and the pairs are recovered by matching IDs. The IDs behave like abstract, position-independent variables: swap them and the model swaps its answer; interpolate between them and it interpolates."
+                display: "bind(Alice, kitchen) ≈ add the same binding vector to both;  retrieval = match on that vector"
+              - text: "Lookbacks generalises this to belief tracking, where an entity's state changes over the context and the model must return a pointer to the most recent binding rather than to the first. Mixing Mechanisms then complicates the picture usefully: binding is not one mechanism but several — positional, lexical, and reflexive — running in parallel and mixed by context."
+            papers:
+              - { year: 2023, title: "How do Language Models Bind Entities in Context?", note: "Binding IDs: an abstract variable implemented as a shared direction.", grade: "A", url: "https://arxiv.org/abs/2310.17191", featured: true }
+              - { year: 2025, title: "Language Models use Lookbacks to Track Beliefs", note: "Pointers to the latest binding; belief tracking as a mechanism.", grade: "A-", url: "https://arxiv.org/abs/2505.14685" }
+              - { year: 2025, title: "Mixing Mechanisms: How LMs Retrieve Bound Entities In-Context", note: "Several binding mechanisms coexist and are mixed by context.", grade: "B+", url: "https://arxiv.org/abs/2510.06182" }
+              - { year: 2024, title: "Monitoring Latent World States with Propositional Probes", note: "Read the bound propositions out of the activations.", grade: "B", url: "https://arxiv.org/abs/2406.19501" }
+              - { year: 2024, title: "Fine-Tuning Enhances Existing Mechanisms: Entity Tracking", note: "Fine-tuning sharpens the circuit that was already there rather than building a new one.", grade: "B+", url: "https://arxiv.org/abs/2402.14811" }
+
+          - heading: "Factual knowledge recall and editing"
+            notes:
+              - text: "ROME is the paper that made interpretability actionable. Causal tracing localises a fact to mid-layer MLPs at the subject's last token; treating that MLP as the key-value memory of the earlier section, one can then solve in closed form for the rank-one weight update that maps the subject key to a new value — and the Eiffel Tower is in Rome."
+                display: "locate with causal tracing → edit with a rank-one update to W_V at the located layer"
+              - text: "Dissecting Recall gives the full pipeline that ROME's localisation hints at: early layers enrich the subject token with its attributes, an MLP encodes the relation, and an attention head at the last position extracts the attribute the relation selects. Linearity of Relation Decoding shows that many relations are, to good approximation, a single affine map from subject to object — which is why a rank-one edit works at all."
+              - text: "Then read Does Localization Inform Editing? last, and read it carefully. Causal tracing tells you where a fact is stored, editing tells you where a fact can be changed, and the paper's uncomfortable finding is that these two locations are barely correlated. An edit at a layer causal tracing never implicates works just as well. The success of ROME is not evidence that its localisation was correct."
+            papers:
+              - { year: 2022, title: "Locating and Editing Factual Associations in GPT (ROME)", note: "Causal tracing plus a rank-one edit. The field's most cited demonstration.", grade: "A", url: "https://arxiv.org/abs/2202.05262", featured: true, tags: ["★"] }
+              - { year: 2023, title: "Dissecting Recall of Factual Associations", note: "Subject enrichment → relation in the MLP → extraction by a head.", grade: "A", url: "https://arxiv.org/abs/2304.14767", featured: true }
+              - { year: 2023, title: "Does Localization Inform Editing?", note: "Where a fact is stored and where it can be edited are barely correlated. Read last.", grade: "A-", url: "https://arxiv.org/abs/2301.04213", featured: true }
+              - { year: 2023, title: "Linearity of Relation Decoding in Transformer LMs", note: "Many relations are an affine map — which is why rank-one editing works.", grade: "B+", url: "https://arxiv.org/abs/2308.09124" }
+              - { year: 2023, title: "Characterizing Mechanisms for Factual Recall", note: "When the model prefers the context over its weights, and why.", grade: "B+", url: "https://arxiv.org/abs/2310.15910" }
+
+      - name: "Training dynamics — where mechanisms come from"
+        sections:
+          - heading: "Circuits over training time and scale"
+            notes:
+              - text: "Everything above interprets a finished checkpoint. The last question is whether any of it is stable — whether a circuit found in GPT-2 small says anything about a model a hundred times larger, or about the same model ten thousand steps earlier."
+              - text: "The answer is more encouraging than one would guess. Circuit analyses are broadly consistent across training and scale: the algorithm a circuit implements, and the order in which its components acquire their roles, are preserved even as the specific heads that fill each role are reshuffled. Task-relevant behaviours emerge at similar token counts across model sizes."
+              - text: "What needs to go right for an induction head is the mechanistic zoom-in on a single such emergence. The phase change in the loss curve is the visible tip of three subcircuits — a previous-token head, a matching operation, and a copy operation — that must form in the right order, and the paper shows the interaction is genuinely non-additive: the head appears when the last piece lands, not gradually. Linear Representations and Pretraining Data Frequency completes the arc back to probing: a concept becomes linearly represented once its co-occurrence count in the pretraining corpus crosses a threshold. The geometry the first section measured is a fossil of the data distribution."
+            papers:
+              - { year: 2024, title: "LLM Circuit Analyses Are Consistent Across Training and Scale", note: "The algorithm persists; which heads implement it does not.", grade: "A-", url: "https://arxiv.org/abs/2407.10827", featured: true }
+              - { year: 2024, title: "What needs to go right for an induction head?", note: "The phase change, decomposed into the three subcircuits that must co-form.", grade: "A-", url: "https://arxiv.org/abs/2404.07129" }
+              - { year: 2025, title: "On Linear Representations and Pretraining Data Frequency", note: "Linear structure appears once co-occurrence frequency crosses a threshold.", grade: "B+", url: "https://arxiv.org/abs/2504.12459" }
 
   - name: "Topic 3 · World models"
     papers: []
