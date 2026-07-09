@@ -255,15 +255,22 @@ html[data-theme="dark"] .rl-video__cap { color: #9a9aa3; }
 }
 html[data-theme="dark"] .rl-section__head { color: #bdb3e0; border-bottom-color: #2c2c30; }
 
-/* ---------- figure ---------- */
-.rl-figure { margin: 1rem .8rem 0; }
+/* ---------- figure ----------
+Figures are centred and capped by a per-figure `image_width` (see reading_list.yml).
+The cap is chosen so the text drawn *inside* each diagram lands near the body's
+~15.5px, which differs per source image — a single shared width cannot do that. */
+.rl-figure { margin: 1rem auto 0; max-width: 620px; }
 .rl-figure img {
-  display: block; width: 100%; height: auto;
+  display: block; width: 100%; height: auto; margin: 0 auto;
   border: 1px solid #e4e1dc; border-radius: 10px;
   background: #fff; /* the diagram has a white matte; keep it readable in dark mode */
   padding: .6rem;
 }
 html[data-theme="dark"] .rl-figure img { border-color: #2c2c30; }
+.rl-figure a { display: block; }
+.rl-figure a:focus-visible img {
+  outline: 2px solid var(--global-theme-color); outline-offset: 3px;
+}
 .rl-figure figcaption {
   margin-top: .55rem; font-size: .86rem; line-height: 1.5;
   color: #6b6b73; text-align: center;
@@ -271,8 +278,7 @@ html[data-theme="dark"] .rl-figure img { border-color: #2c2c30; }
 html[data-theme="dark"] .rl-figure figcaption { color: #9a9aa3; }
 
 /* a figure attached to a single note sits directly under that note's line */
-.rl-figure--note { margin: .75rem 0 .25rem; max-width: 640px; }
-.rl-figure--note figcaption { text-align: left; }
+.rl-figure--note { margin: .75rem auto .25rem; }
 
 /* ---------- subtopic notes ---------- */
 .rl-notes { margin: .4rem .8rem 1.2rem; padding: 0; list-style: none; }
@@ -419,8 +425,10 @@ html[data-theme="dark"] .rl-paper__note { color: #9a9aa3; }
                           {%- if n.text -%}<span class="rl-notes__text">{{ n.text }}</span>{%- endif -%}
                           {%- if n.display -%}<span class="rl-notes__eq">{{ n.display }}</span>{%- endif -%}
                           {%- if n.image -%}
-                          <figure class="rl-figure rl-figure--note">
-                            <img src="{{ n.image | relative_url }}" alt="{{ n.image_alt | default: n.image_caption | default: n.display }}" loading="lazy">
+                          <figure class="rl-figure rl-figure--note"{% if n.image_width %} style="max-width: {{ n.image_width }}px"{% endif %}>
+                            <a href="{{ n.image | relative_url }}" target="_blank" rel="noopener noreferrer" aria-label="Open the full-size figure in a new tab">
+                              <img src="{{ n.image | relative_url }}" alt="{{ n.image_alt | default: n.image_caption | default: n.display }}" loading="lazy">
+                            </a>
                             {%- if n.image_caption -%}<figcaption>{{ n.image_caption }}</figcaption>{%- endif -%}
                           </figure>
                           {%- endif -%}
@@ -429,10 +437,15 @@ html[data-theme="dark"] .rl-paper__note { color: #9a9aa3; }
                       </ul>
                       {%- endif -%}
                       {%- if sec.image -%}
-                      <figure class="rl-figure">
-                        <img src="{{ sec.image | relative_url }}" alt="{{ sec.image_alt | default: sec.image_caption | default: sec.heading }}" loading="lazy">
+                      <figure class="rl-figure"{% if sec.image_width %} style="max-width: {{ sec.image_width }}px"{% endif %}>
+                        <a href="{{ sec.image | relative_url }}" target="_blank" rel="noopener noreferrer" aria-label="Open the full-size figure in a new tab">
+                          <img src="{{ sec.image | relative_url }}" alt="{{ sec.image_alt | default: sec.image_caption | default: sec.heading }}" loading="lazy">
+                        </a>
                         {%- if sec.image_caption -%}<figcaption>{{ sec.image_caption }}</figcaption>{%- endif -%}
                       </figure>
+                      {%- endif -%}
+                      {%- if sec.papers and sec.papers.size > 0 -%}
+                        {%- for p in sec.papers -%}{%- include rl_paper.html paper=p -%}{%- endfor -%}
                       {%- endif -%}
                     </section>
                     {%- endfor -%}

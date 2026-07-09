@@ -14,6 +14,12 @@
 #     video_note: "Karpathy — ..."# optional caption under the thumbnail
 #     papers: [ ... ]             # related papers, shown below the video
 #
+# Figures (on a section, or on a single note) take:
+#   image: "/assets/img/..."   image_alt: "..."   image_caption: "..."
+#   image_width: 640           # px cap; figures are centred. Pick it so the text
+#                              # drawn inside the diagram lands near the body's
+#                              # ~15.5px:  width = 15.5 * native_width / text_px
+#
 # A paper entry:
 #   - year: 2024            # a plain number — never quote it (quoting breaks the year stats)
 #     title: "Paper Title"
@@ -121,6 +127,7 @@ categories:
               - text: "A practical implementation usually decomposes the model into visual representation, language representation, alignment or fusion, and a task head or decoder:"
                 display: "VLM = visual representation + text representation + alignment/fusion mechanism + task head or decoder"
                 image: "/assets/img/reading_list/llava_arch.png"
+                image_width: 640   # native 1607px wide, ~40px text -> ~15.5px on screen
                 image_alt: "The LLaVA architecture. An image X_v enters a vision encoder producing features Z_v; a projection matrix W maps them into visual tokens H_v. A language instruction X_q becomes text tokens H_q. Both token sequences feed the language model f_phi, which autoregressively emits the language response X_a."
                 image_caption: "LLaVA makes the four parts concrete: the vision encoder is the visual representation, the instruction tokens are the text representation, the projection W is the alignment/fusion mechanism, and the language model itself serves as the decoder."
               - text: "This gives the standard modular MLLM pipeline:"
@@ -132,6 +139,7 @@ categories:
               - text: "It begins by patchifying the image. The picture is cut into a grid of fixed-size patches; each patch is flattened, linearly projected to the model width D, and given a positional encoding. The patch grid — not the pixel count — sets the token budget:"
                 display: "224×224 image, 16×16 px patches → 14×14 grid = 196 visual tokens"
                 image: "/assets/img/reading_list/image_tokenization.jpeg"
+                image_width: 540   # native 1566px wide, ~46px text -> ~15.5px on screen
                 image_alt: "Patch embeddings in a Vision Transformer. A 224 by 224 image is divided into 16 by 16 pixel patches, forming a 14 by 14 grid. Each patch is flattened into 768 values, linearly projected to D dimensions, and given a positional encoding, yielding 196 tokens."
                 image_caption: "Patch embedding. Each 16×16 px patch flattens to 16·16·3 = 768 values before the linear projection to D. Note the middle panel labels patch size, not grid size: the grid is 14×14."
               - text: "Stacked self-attention blocks then contextualize those patch tokens. The encoder's output is N token vectors in its own width, which the projector maps into the LLM's embedding space so they can simply be concatenated with the text tokens."
@@ -139,19 +147,28 @@ categories:
 
           - heading: "VLM training"
             image: "/assets/img/reading_list/VLMArch.jpg"
+            image_width: 850   # native 2794px wide, ~52px text -> ~15.5px on screen
             image_alt: "Two VLM training stages side by side. In pre-training the image encoder and text decoder are frozen and only the multimodal projector is trained; in fine-tuning the projector and text decoder are trained while the image encoder stays frozen."
             image_caption: "The standard two-stage recipe: pre-training aligns the projector against a frozen encoder and decoder; fine-tuning unfreezes the decoder for instruction following."
 
           - heading: "Qwen2.5-VL as an example"
             notes:
+              - text: "The standard design above is not necessarily the optimal one. Production VLMs depart from it wherever the fixed-resolution ViT costs accuracy or compute, and Qwen2.5-VL is a convenient place to see the three most common departures: native dynamic resolution, window attention in place of full attention over every patch, and genuine video support rather than a stack of independent frames."
               - text: "Qwen2.5-VL instantiates the same pipeline, but drops the fixed-resolution assumption that produced a constant 196 tokens above. Images enter at native resolution, so the token count becomes a function of the picture itself:"
                 display: "native-resolution image → Conv3D patch embed (2×14×14) → windowed ViT → merger → Qwen2.5 LM decoder"
                 image: "/assets/img/reading_list/qwen2vl.jpg"
+                # Dense figure: its small labels sit near 16px in a 1872px-wide source, so
+                # matching body text would need ~1800px. Given the full column instead; click to zoom.
+                image_width: 870
                 image_alt: "The Qwen2.5-VL architecture. Images and video at native resolution enter a vision encoder built from RMSNorm and SwiGLU blocks using mostly window attention with occasional full attention, after a Conv3D patch embedding with two-times temporal merging. The resulting visual tokens, varying in count per image, are concatenated with text tokens and fed to the Qwen2.5 language-model decoder. Video frames use dynamic FPS sampling and MRoPE time IDs aligned to absolute time."
-                image_caption: "Qwen2.5-VL. Native-resolution input makes the visual token count vary per image; window attention keeps the cost of a large token sequence manageable."
+                image_caption: "Qwen2.5-VL. Native-resolution input makes the visual token count vary per image; window attention keeps the cost of a large token sequence manageable. Click the figure to view it full size."
               - text: "Because resolution is preserved, a thin 224×28 banner costs only 8 tokens while a tall 1092×8204 page costs 11,427. Detail is no longer capped by a 14×14 grid, but the sequence the LLM must attend over grows with the image."
               - text: "To make that affordable the encoder uses window attention over 112×112 windows in most blocks, whose cost is linear rather than quadratic in token count, interleaved with occasional full-attention blocks that restore global context. The blocks themselves mirror the LLM: RMSNorm and a SwiGLU feed-forward."
-              - text: "Video reuses the same machinery. A Conv3D patch embedding merges two frames at a time, dynamic FPS sampling controls the frame budget, and MRoPE time IDs are aligned to absolute time so the model can reason about real durations rather than frame indices."
+              - text: "Video is not fed in as a sequence of independent image frames. The patch embedding is a Conv3D spanning two adjacent frames (2×14×14), so each visual token already summarises a short slice of time and the temporal token count is halved before the encoder ever runs."
+              - text: "On top of that, dynamic FPS sampling decides how many frames survive — the same clip costs 644, 1288 or 2576 tokens depending on the rate — and MRoPE gives every token a time ID aligned to its absolute timestamp. The model therefore sees elapsed seconds rather than frame indices, which is what lets it answer questions about duration and ordering."
+            papers:
+              - { title: "Qwen2.5-VL Technical Report", note: "The architecture and training recipe in full.", grade: "A-", url: "https://arxiv.org/abs/2502.13923" }
+              - { title: "Qwen2.5-VL: a hands-on code walkthrough", note: "Traces the implementation end to end, from patch embedding to the LM decoder.", grade: "B", url: "https://pub.towardsai.net/qwen2-5-vl-a-hands-on-code-walkthrough-5fba8a34e7d7" }
       - { name: "Spatial tasks and benchmarks — overview of VLM capability", papers: [] }
       - { name: "Data-driven methods", papers: [] }
       - { name: "Incorporating 3D modality in the input layer", papers: [] }
