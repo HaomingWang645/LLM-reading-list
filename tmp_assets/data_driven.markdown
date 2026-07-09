@@ -14,3 +14,4 @@ Learning to Localize Objects Improves Spatial Reasoning in Visual-LLMs (https://
 Scaling Spatial Intelligence with Multimodal Foundation Models (https://arxiv.org/pdf/2511.13719)
 How Far are VLMs from Visual Spatial
 Intelligence? A Benchmark-Driven Perspective (https://arxiv.org/pdf/2509.18905)
+Visual Spatial Tuning (https://arxiv.org/pdf/2511.05491)
