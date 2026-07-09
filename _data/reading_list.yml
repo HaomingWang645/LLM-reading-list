@@ -195,6 +195,49 @@ categories:
               - text: "Four tasks want a number, and are scored against the true value: object count, object size in centimetres, absolute distance in metres, and room size in square metres."
               - text: "The other four are multiple choice: relative distance, relative direction from an assumed viewpoint and heading, the order in which objects first appear, and route planning, where the model fills in the missing turns of a navigation plan."
               - text: "Because the input is a video of one continuous scene rather than an isolated frame, the model has to accumulate what it has seen into a persistent spatial map — which is precisely the ability the radar plot above says is missing."
+
+          - heading: "Results: spatial reasoning is still unsolved"
+            notes:
+              - text: "Running the benchmark makes the size of the gap concrete. Both proprietary and open-source models are improving quickly, yet spatial reasoning remains an unsolved problem for all of them:"
+                image: "/assets/img/reading_list/vsi_results.png"
+                # Dense table: ~22px text in a 1718px-wide source would need ~1200px to match
+                # body text. Given the full column instead; click to zoom.
+                image_width: 870
+                image_alt: "VSI-Bench results table. Proprietary models, open-source models, and human evaluation are compared across an average column and eight task columns split into numerical answers (object count, absolute distance, object size, room size) and multiple-choice answers (relative direction, relative distance, route plan, appearance order). GPT-5 leads the proprietary models with an average of 53.14 and InternVL3-78B leads the open-source models with 45.85, against a human average of 79.2."
+                image_caption: "VSI-Bench results. The delta row reports the best model minus human, and it is negative on six of the eight tasks. Click the figure to view it full size."
+              - text: "The best model averages 53.1 against a human 79.2, a deficit of 26 points. The best open-source model, InternVL3-78B, reaches 45.9 — close enough to the proprietary frontier that the gap between labs is now smaller than the gap to people."
+              - text: "The deficit is not uniform, and where it inverts is instructive. On the two metric-estimation tasks the models already beat humans: object size by 13.3 points and room size by 5.9. Humans are simply poor at eyeballing centimetres and square metres, scoring 47.0 and 45.9 there."
+              - text: "On the relational and egocentric tasks the picture flips hard. Humans score between 94.7 and 100 on relative direction, relative distance, route planning and appearance order, while the best model manages 41 to 66 — deficits of 31, 52, 49 and 32 points. Estimating a quantity is not what defeats these models; building and querying a consistent spatial model of the scene is."
+
+          - heading: "Analysis beyond accuracy"
+            notes:
+              - text: "An aggregate score says a model is bad at spatial reasoning; it does not say why. Two families of analysis go further, and they cut at different levels."
+              - text: "The first stays in the text domain: ask the model to explain its reasoning, then read the explanation."
+                image: "/assets/img/reading_list/self-explanation.png"
+                image_width: 870
+                image_alt: "Two VSI-Bench cases with the model's written reasoning. In a relative-direction question the model orients itself at the refrigerator, locates the dishwasher, visualises the Cartesian quadrants, and answers front-left, matching the ground truth; it is annotated as showing human-like reasoning, video understanding, and an internal world model. In a route-plan question it answers turn right then turn left where the truth is turn left then turn right, and is annotated as failing egocentric-allocentric transformation and relational reasoning."
+                image_caption: "Left: the model reaches the right answer through recognisably human steps — orient yourself, locate the object, visualise the quadrants — grounding each in a video timestamp. Right: the same machinery inverts the turns of a route plan. That is an egocentric-to-allocentric failure, not a perception failure. Click the figure to view it full size."
+              - text: "Because those explanations are text, they can be labelled and counted. Aggregating over the whole benchmark turns anecdote into a distribution of error patterns:"
+                image: "/assets/img/reading_list/error-pattern.png"
+                image_width: 870
+                image_alt: "Two charts. A stacked bar chart shows the error breakdown per task for appearance order, absolute distance, room size, object size, route plan, relative direction, relative distance, and object count, split into linguistic intelligence error, visual perception error, relational reasoning error, and egocentric-allocentric transformation error. A pie chart shows the overall breakdown, in which relational reasoning error is the largest slice, followed by egocentric-allocentric transformation error, visual perception error, and linguistic intelligence error."
+                image_caption: "Relational reasoning is the largest error bucket overall, followed by egocentric–allocentric transformation."
+              - text: "The per-task bars matter more than the pie, because they show the bottleneck moving. Object count fails overwhelmingly on visual perception — the model simply misses objects. Appearance order fails mostly on linguistic intelligence. Route plan and room size are almost entirely relational and egocentric–allocentric. “Spatial reasoning” is not one failure mode but at least four, in different proportions per task."
+              - text: "The second family opens the model up rather than taking its word for it. Attention weights over image patches show which regions an answer was actually computed from:"
+                image: "/assets/img/reading_list/attention.png"
+                image_width: 870
+                image_alt: "A VLM such as LLaVA is asked where the book is in relation to the candle, and where the cat is in relation to the person. Its attention over image patches is visualised. A smoother, more diffuse attention map is labelled unfamiliar and paired with a low-confidence wrong answer; the model is told to look at other patches. A sharper map is labelled familiar; the model is told to look more closely. Both interventions yield the correct relation."
+                image_caption: "Attention over image patches in LLaVA. The shape of the map is itself a signal: a diffuse map coincides with a low-confidence guess, and steering where the model attends recovers the correct relation. Click the figure to view it full size."
+              - text: "The two are complementary. A self-explanation is legible but may be a post-hoc rationalisation of an answer the model had already committed to; an attention map is tied to the computation but needs interpreting before it means anything."
+
+          - heading: "Reading"
+            papers:
+              - { title: "VSI-Bench", note: "Spatial tasks posed as VQA over walkthrough video; the benchmark used above.", grade: "A-", url: "https://arxiv.org/abs/2603.05591" }
+              - { title: "OmniSpatial", note: "Broader coverage of spatial reasoning categories.", grade: "B+", url: "https://arxiv.org/abs/2506.03135" }
+              - { title: "MMSI-Bench", note: "Multi-image spatial intelligence benchmark.", grade: "B+", url: "https://arxiv.org/abs/2505.23764" }
+              - { title: "MindCube", grade: "B", url: "https://arxiv.org/abs/2506.21458" }
+              - { title: "Why Is Spatial Reasoning Hard for VLMs? An Attention Mechanism Perspective on Focus Areas", note: "Reads spatial failure off the attention maps — the second analysis family above.", grade: "B+", url: "https://arxiv.org/abs/2503.01773" }
+              - { title: "Beyond Semantics: Rediscovering Spatial Awareness in Vision-Language Models", note: "Argues spatial awareness is present but under-used relative to semantics.", grade: "B+", url: "https://arxiv.org/abs/2503.17349" }
       - { name: "Data-driven methods", papers: [] }
       - { name: "Incorporating 3D modality in the input layer", papers: [] }
       - { name: "Chain-of-thought reasoning for spatial tasks", papers: [] }
