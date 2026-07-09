@@ -120,11 +120,25 @@ categories:
               - text: "VLMs are the bridge between perception and language."
               - text: "A practical implementation usually decomposes the model into visual representation, language representation, alignment or fusion, and a task head or decoder:"
                 display: "VLM = visual representation + text representation + alignment/fusion mechanism + task head or decoder"
+                image: "/assets/img/reading_list/llava_arch.png"
+                image_alt: "The LLaVA architecture. An image X_v enters a vision encoder producing features Z_v; a projection matrix W maps them into visual tokens H_v. A language instruction X_q becomes text tokens H_q. Both token sequences feed the language model f_phi, which autoregressively emits the language response X_a."
+                image_caption: "LLaVA makes the four parts concrete: the vision encoder is the visual representation, the instruction tokens are the text representation, the projection W is the alignment/fusion mechanism, and the language model itself serves as the decoder."
               - text: "This gives the standard modular MLLM pipeline:"
                 display: "image → vision encoder → projector / adapter / resampler → LLM → text response"
             image: "/assets/img/reading_list/VLMArch.jpg"
             image_alt: "Two VLM training stages side by side. In pre-training the image encoder and text decoder are frozen and only the multimodal projector is trained; in fine-tuning the projector and text decoder are trained while the image encoder stays frozen."
             image_caption: "The standard two-stage recipe: pre-training aligns the projector against a frozen encoder and decoder; fine-tuning unfreezes the decoder for instruction following."
+
+          - heading: "The vision encoder"
+            notes:
+              - text: "The vision encoder is the first stage of that pipeline: it turns raw pixels into a sequence of tokens the LLM can attend over. Almost every modern VLM uses a Vision Transformer (ViT), typically one pretrained by image–text contrastive learning (CLIP, SigLIP) and often kept frozen."
+              - text: "It begins by patchifying the image. The picture is cut into a grid of fixed-size patches; each patch is flattened, linearly projected to the model width D, and given a positional encoding. The patch grid — not the pixel count — sets the token budget:"
+                display: "224×224 image, 16×16 px patches → 14×14 grid = 196 visual tokens"
+                image: "/assets/img/reading_list/image_tokenization.jpeg"
+                image_alt: "Patch embeddings in a Vision Transformer. A 224 by 224 image is divided into 16 by 16 pixel patches, forming a 14 by 14 grid. Each patch is flattened into 768 values, linearly projected to D dimensions, and given a positional encoding, yielding 196 tokens."
+                image_caption: "Patch embedding. Each 16×16 px patch flattens to 16·16·3 = 768 values before the linear projection to D. Note the middle panel labels patch size, not grid size: the grid is 14×14."
+              - text: "Stacked self-attention blocks then contextualize those patch tokens. The encoder's output is N token vectors in its own width, which the projector maps into the LLM's embedding space so they can simply be concatenated with the text tokens."
+              - text: "Two consequences drive much of the spatial-reasoning literature: fine detail is capped by the patch grid, and token count grows quadratically with resolution. That is why resamplers (Q-Former, Perceiver) and dynamic-resolution schemes (Qwen2-VL, LLaVA-NeXT) exist."
       - { name: "Spatial tasks and benchmarks — overview of VLM capability", papers: [] }
       - { name: "Data-driven methods", papers: [] }
       - { name: "Incorporating 3D modality in the input layer", papers: [] }

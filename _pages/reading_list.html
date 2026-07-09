@@ -270,6 +270,10 @@ html[data-theme="dark"] .rl-figure img { border-color: #2c2c30; }
 }
 html[data-theme="dark"] .rl-figure figcaption { color: #9a9aa3; }
 
+/* a figure attached to a single note sits directly under that note's line */
+.rl-figure--note { margin: .75rem 0 .25rem; max-width: 640px; }
+.rl-figure--note figcaption { text-align: left; }
+
 /* ---------- subtopic notes ---------- */
 .rl-notes { margin: .4rem .8rem 1.2rem; padding: 0; list-style: none; }
 .rl-notes__item { position: relative; padding-left: 1.1rem; margin-bottom: 1.1rem; }
@@ -414,6 +418,12 @@ html[data-theme="dark"] .rl-paper__note { color: #9a9aa3; }
                         <li class="rl-notes__item">
                           {%- if n.text -%}<span class="rl-notes__text">{{ n.text }}</span>{%- endif -%}
                           {%- if n.display -%}<span class="rl-notes__eq">{{ n.display }}</span>{%- endif -%}
+                          {%- if n.image -%}
+                          <figure class="rl-figure rl-figure--note">
+                            <img src="{{ n.image | relative_url }}" alt="{{ n.image_alt | default: n.image_caption | default: n.display }}" loading="lazy">
+                            {%- if n.image_caption -%}<figcaption>{{ n.image_caption }}</figcaption>{%- endif -%}
+                          </figure>
+                          {%- endif -%}
                         </li>
                         {%- endfor -%}
                       </ul>
