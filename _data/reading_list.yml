@@ -483,7 +483,42 @@ categories:
               - { title: "MindCube", grade: "B", url: "https://arxiv.org/abs/2506.21458" }
               - { title: "Why Is Spatial Reasoning Hard for VLMs? An Attention Mechanism Perspective on Focus Areas", note: "Reads spatial failure off the attention maps — the second analysis family above.", grade: "B+", url: "https://arxiv.org/abs/2503.01773" }
               - { title: "Beyond Semantics: Rediscovering Spatial Awareness in Vision-Language Models", note: "Argues spatial awareness is present but under-used relative to semantics.", grade: "B+", url: "https://arxiv.org/abs/2503.17349" }
-      - { name: "Data-driven methods", papers: [] }
+      - name: "Data-driven methods"
+        sections:
+          - heading: "The data-scarcity hypothesis"
+            notes:
+              - text: "The most intuitive explanation for the gap is a data one. VLM pretraining corpora annotate semantics — what is in the picture — while data carrying genuine 3D spatial annotation is rare. If that is the whole story, spatial reasoning is not a missing capability but a missing dataset, and enough spatial VQA data should train it in."
+              - text: "Since such data cannot be hand-labelled at scale, the standard move is a pipeline that manufactures it automatically from ordinary images:"
+                image: "/assets/img/reading_list/automatic_label.png"
+                image_width: 870
+                image_alt: "An automatic spatial-VQA generation pipeline in five stages. (a) Semantic filtering discards unsuitable images. (b) 2D context extraction runs region captioning, metric depth estimation, coordinate canonicalization, and segmentation. (c) The 2D context is lifted into a 3D point cloud. (d) Ambiguity resolution clusters region captions and removes duplicates so each object has one unambiguous referring expression. (e) Distance and predicate extraction, followed by human alignment, synthesises question-answer pairs such as: how far is A from B, and the answer is a distance."
+                image_caption: "The SpatialVLM-style recipe. Off-the-shelf perception models supply what the annotation lacks: depth estimation and segmentation lift a flat image into a 3D point cloud, from which distances and spatial predicates are read off and templated into question–answer pairs. Click the figure to view it full size."
+              - text: "The critical step is (c). Metric depth turns pixels into coordinates, so a quantity that was never annotated — the distance between two objects — becomes computable, and therefore becomes supervision. Everything else exists to make that measurement unambiguous: clustering collapses “cake shaped like a house” and “cake on a plate” into a single referent before any question is asked about it."
+
+          - heading: "Does scaling the data solve it?"
+            notes:
+              - text: "Fine-tuning on this synthetic data does improve the benchmarks. But an interesting finding is that spatial reasoning appears to emerge, and to scale, markedly more slowly than other capabilities:"
+                image: "/assets/img/reading_list/scaling_data.jpg"
+                image_width: 870
+                image_alt: "Top: two bar charts. On basic cognition tasks such as boundary, intuitive physics, intentionality and tool use, humans score 79, GPT-5 scores 78, and InternVL3 scores 51. On spatial reasoning, humans score 95, GPT-5 scores 36, and InternVL3 scores 25. Bottom: two performance-versus-data-volume curves for SenseNova-SI built on InternVL3-8B and InternVL3-2B, for a measurement task and a multi-step reasoning task. Both curves rise steeply until roughly two million samples and then flatten out to eight million, with a red box marking the plateau. Other models including ViLaSR-7B, SpatialLadder-3B, SpaceR-7B, VST-7B and Cambrian-S-7B are plotted at their own data volumes."
+                image_caption: "Spatial reasoning is not “emerging” at the rate other capabilities are. Top: GPT-5 essentially matches humans on basic cognition (78 against 79) yet collapses on spatial reasoning (36 against 95). Bottom: performance climbs steeply to about 2M samples, then plateaus out to 8M. Click the figure to view it full size."
+              - text: "The top row isolates the anomaly. The same model that reaches human parity on boundary, intuitive physics, intentionality and tool use scores 36 against a human 95 once the question turns spatial. Whatever is missing is specific, not a general shortfall in capability."
+              - text: "The bottom row is the part that should worry a purely data-driven programme. Both SenseNova-SI curves rise steeply, overtake GPT-5, then flatten after roughly 2M samples — the next four million buy almost nothing. If more data were sufficient, the curve would keep climbing."
+
+          - heading: "Why the signal is weak"
+            notes:
+              - text: "There could be many reasons behind that plateau. A likely one is that a VQA pair is a very weak training signal for geometry."
+              - text: "Compare what the video contains with what the label carries. The scene holds the full geometry: every surface, every relative position, the camera's path through it. The supervision is a single scalar, or one letter of a multiple choice. Gradient descent is being asked to recover a 3D world model from an extremely low-bandwidth target."
+              - text: "Worse, that target is often reachable without the geometry at all. Answer priors, question phrasing and object co-occurrence offer shortcuts, so the model can over-attend to the text and score well without ever reasoning from the visual input — which is precisely what the error-pattern and attention analyses in the previous subtopic suggest is happening."
+
+          - heading: "Reading"
+            papers:
+              - { title: "SpatialVLM: Endowing Vision-Language Models with Spatial Reasoning Capabilities", note: "The automatic spatial-VQA generation pipeline shown above.", grade: "A-", url: "https://arxiv.org/abs/2401.12168", featured: true }
+              - { title: "Cambrian-S: Towards Spatial Supersensing in Video", grade: "B+", url: "https://arxiv.org/abs/2511.04670" }
+              - { title: "Learning to Localize Objects Improves Spatial Reasoning in Visual-LLMs", note: "Localization as an auxiliary objective — a denser signal than VQA alone.", grade: "B+", url: "https://arxiv.org/abs/2404.07449" }
+              - { title: "Scaling Spatial Intelligence with Multimodal Foundation Models", note: "The SenseNova-SI scaling curves shown above.", grade: "A-", url: "https://arxiv.org/abs/2511.13719" }
+              - { title: "How Far are VLMs from Visual Spatial Intelligence? A Benchmark-Driven Perspective", grade: "B+", url: "https://arxiv.org/abs/2509.18905" }
+
       - { name: "Incorporating 3D modality in the input layer", papers: [] }
       - { name: "Chain-of-thought reasoning for spatial tasks", papers: [] }
       - { name: "Spatial-aware RL", papers: [] }
@@ -501,7 +536,6 @@ categories:
               - text: "The unit of analysis is the axis along which this chapter is organised. One can interrogate the representation (probing, inspection), the component that wrote it (heads, MLPs, neurons), the feature it encodes (superposition, sparse autoencoders), or the subgraph that computes a behaviour end to end (circuits). Each unit turns out to be leakier than the one before it hoped."
               - text: "The organisation and reading lists here follow the Interpretability of Large Language Models course (0368.4264) at Tel Aviv University, developed by Mor Geva and Daniela Gottesman, which pairs each week's papers with a Colab exercise."
             papers:
-              - { title: "llm-interp-tau — course repository", note: "Schedule, reading lists, and hands-on exercises with solutions.", grade: "A", url: "https://github.com/mega002/llm-interp-tau", featured: true }
               - { year: 2020, title: "Interpreting GPT: the logit lens", note: "Project any hidden state through W_U and read it as a next-token distribution.", grade: "A-", url: "https://www.lesswrong.com/posts/AcKRB8wDpdaN6v6ru/interpreting-gpt-the-logit-lens", featured: true }
               - { year: 2024, title: "The Quest for the Right Mediator", note: "A survey that puts causal interpretability on a common theoretical footing; read it to know what a “unit” buys you.", grade: "B+", url: "https://arxiv.org/abs/2408.01416" }
 
