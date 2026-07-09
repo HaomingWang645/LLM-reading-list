@@ -169,7 +169,32 @@ categories:
             papers:
               - { title: "Qwen2.5-VL Technical Report", note: "The architecture and training recipe in full.", grade: "A-", url: "https://arxiv.org/abs/2502.13923" }
               - { title: "Qwen2.5-VL: a hands-on code walkthrough", note: "Traces the implementation end to end, from patch embedding to the LM decoder.", grade: "B", url: "https://pub.towardsai.net/qwen2-5-vl-a-hands-on-code-walkthrough-5fba8a34e7d7" }
-      - { name: "Spatial tasks and benchmarks — overview of VLM capability", papers: [] }
+      - name: "Spatial tasks and benchmarks — overview of VLM capability"
+        sections:
+          - heading: "The gap between semantic and spatial understanding"
+            notes:
+              - text: "At the semantic level a frontier VLM is close to human: it names objects, describes activities, and answers open-ended questions about a scene. Most people have felt this in daily use."
+              - text: "Understanding 3D spatial information is a different story. The geometry of objects, where they sit relative to one another, and how they move are all immediate for a human and hard for a VLM. The failures are systematic rather than random: qualitative results show the model repeatedly making low-level mistakes, such as reasoning over pixel space — taking a measurement in pixels for an object's length in 3D — and being unable to perform mental rotation while thinking."
+                image: "/assets/img/reading_list/performance_gap.jpg"
+                # Dense slide: its smallest text is ~20px in an 1800px-wide source, so matching
+                # body text would need ~1400px. Given the full column instead; click to zoom.
+                image_width: 870
+                image_alt: "Two GPT-5 failure cases beside a radar plot. In a spatial-relations question about which object is higher in 3D world space, GPT-5 reasons from apparent height in the 2D image and answers wrongly. In a mental-reconstruction task it cannot build a 3D shape from its top view. The radar plot compares humans against GPT-5 and Qwen3-VL-8B across eight axes including object-object relationships, camera-region relationships, measurement, appearance, camera motion, and multi-step reasoning; the human polygon encloses both models on every axis."
+                image_caption: "GPT-5 judges elevation from 2D pixel height rather than 3D world space, and cannot perform the mental rotation needed to reconstruct a shape from its top view. The radar plot shows the gap is not confined to one skill: the human envelope encloses both proprietary and open models on every axis. Source: “Has GPT-5 Achieved Spatial Intelligence? An Empirical Study.” Click the figure to view it full size."
+
+          - heading: "Benchmarks: spatial tasks as VQA"
+            notes:
+              - text: "To quantify a model's spatial capability, the standard way to build benchmark data is to formulate each spatial skill as a visual question-answering task. Given an image or a video, the model answers a numerical or a multiple-choice question, so grading is exact and automatic:"
+                display: "image / video + spatial question → numerical answer or multiple choice"
+              - text: "VSI-Bench is a representative instance. Its questions are posed over a walkthrough video of a single real room, and its eight tasks split cleanly by answer type:"
+                image: "/assets/img/reading_list/vsibench_tasks.png"
+                # Same treatment: ~22px question text in a 1990px-wide source.
+                image_width: 870
+                image_alt: "The eight VSI-Bench tasks arranged around a 3D floor plan showing the camera trajectory through a flat. On the left: object count, relative distance, appearance order, and relative direction. On the right: object size, absolute distance, room size, and route plan. A strip of video frames from the walkthrough runs across the top."
+                image_caption: "VSI-Bench. Every task is answered from the same walkthrough video, so the model must integrate observations across frames rather than read one picture. Click the figure to view it full size."
+              - text: "Four tasks want a number, and are scored against the true value: object count, object size in centimetres, absolute distance in metres, and room size in square metres."
+              - text: "The other four are multiple choice: relative distance, relative direction from an assumed viewpoint and heading, the order in which objects first appear, and route planning, where the model fills in the missing turns of a navigation plan."
+              - text: "Because the input is a video of one continuous scene rather than an isolated frame, the model has to accumulate what it has seen into a persistent spatial map — which is precisely the ability the radar plot above says is missing."
       - { name: "Data-driven methods", papers: [] }
       - { name: "Incorporating 3D modality in the input layer", papers: [] }
       - { name: "Chain-of-thought reasoning for spatial tasks", papers: [] }
