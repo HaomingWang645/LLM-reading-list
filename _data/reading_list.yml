@@ -113,7 +113,18 @@ categories:
 
   - name: "Topic 1 · Spatial reasoning"
     subtopics:
-      - { name: "Background: standard design of VLMs", papers: [] }
+      - name: "Background: standard design of VLMs"
+        sections:
+          - heading: "Overview"
+            notes:
+              - text: "VLMs are the bridge between perception and language."
+              - text: "A practical implementation usually decomposes the model into visual representation, language representation, alignment or fusion, and a task head or decoder:"
+                display: "VLM = visual representation + text representation + alignment/fusion mechanism + task head or decoder"
+              - text: "This gives the standard modular MLLM pipeline:"
+                display: "image → vision encoder → projector / adapter / resampler → LLM → text response"
+            image: "/assets/img/reading_list/VLMArch.jpg"
+            image_alt: "Two VLM training stages side by side. In pre-training the image encoder and text decoder are frozen and only the multimodal projector is trained; in fine-tuning the projector and text decoder are trained while the image encoder stays frozen."
+            image_caption: "The standard two-stage recipe: pre-training aligns the projector against a frozen encoder and decoder; fine-tuning unfreezes the decoder for instruction following."
       - { name: "Spatial tasks and benchmarks — overview of VLM capability", papers: [] }
       - { name: "Data-driven methods", papers: [] }
       - { name: "Incorporating 3D modality in the input layer", papers: [] }

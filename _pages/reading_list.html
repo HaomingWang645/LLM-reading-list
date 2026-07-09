@@ -26,7 +26,9 @@ description: A curated, structured reading list on large language models.
 {%- comment -%} All styles below are scoped to .rl (plus a couple of page-only wrapper tweaks).
 This inline <style> is only loaded on this page. {%- endcomment -%}
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,800;1,600;1,700&display=swap');
+/* No @import here: a blocking @import to an external font host stalls first paint
+   when that host is unreachable. --rl-serif falls back to Roboto Slab, which the
+   site's base layout already loads via a non-blocking <link>. */
 
 body { overflow-x: clip; } /* page-only: belt-and-suspenders against full-bleed overflow */
 .container.mt-5 { margin-top: 0 !important; } /* page-only: let the hero sit flush under the fixed navbar */
@@ -243,6 +245,50 @@ details[open] > .rl-sub__head .rl-sub__name::before { transform: rotate(90deg); 
 }
 html[data-theme="dark"] .rl-video__cap { color: #9a9aa3; }
 
+/* ---------- subtopic section ---------- */
+.rl-section { margin: .3rem 0 1.4rem; }
+.rl-section__head {
+  font-family: var(--rl-serif); font-weight: 700;
+  font-size: 1.12rem; color: #3a3550;
+  margin: .4rem .8rem .7rem; padding-bottom: .35rem;
+  border-bottom: 1px solid #e4e1dc;
+}
+html[data-theme="dark"] .rl-section__head { color: #bdb3e0; border-bottom-color: #2c2c30; }
+
+/* ---------- figure ---------- */
+.rl-figure { margin: 1rem .8rem 0; }
+.rl-figure img {
+  display: block; width: 100%; height: auto;
+  border: 1px solid #e4e1dc; border-radius: 10px;
+  background: #fff; /* the diagram has a white matte; keep it readable in dark mode */
+  padding: .6rem;
+}
+html[data-theme="dark"] .rl-figure img { border-color: #2c2c30; }
+.rl-figure figcaption {
+  margin-top: .55rem; font-size: .86rem; line-height: 1.5;
+  color: #6b6b73; text-align: center;
+}
+html[data-theme="dark"] .rl-figure figcaption { color: #9a9aa3; }
+
+/* ---------- subtopic notes ---------- */
+.rl-notes { margin: .4rem .8rem 1.2rem; padding: 0; list-style: none; }
+.rl-notes__item { position: relative; padding-left: 1.1rem; margin-bottom: 1.1rem; }
+.rl-notes__item:last-child { margin-bottom: .3rem; }
+.rl-notes__item::before {
+  content: "\2022"; position: absolute; left: 0; top: -.05em;
+  color: #8a7fb8; font-size: 1.05rem; line-height: inherit;
+}
+.rl-notes__text { color: #3f3f49; font-size: .97rem; line-height: 1.6; }
+html[data-theme="dark"] .rl-notes__text { color: #c2c2cb; }
+.rl-notes__eq {
+  display: block; margin: .85rem 0 .2rem; padding: 0 .5rem;
+  font-family: var(--rl-serif); font-weight: 400;
+  font-size: 1.02rem; line-height: 1.5;
+  text-align: center; color: #26262e; overflow-wrap: anywhere;
+}
+html[data-theme="dark"] .rl-notes__eq { color: #e2e2e9; }
+@media (max-width: 620px) { .rl-notes__eq { font-size: .92rem; text-align: left; } }
+
 /* ---------- paper row ---------- */
 .rl-paper {
   display: flex; align-items: flex-start; gap: 1rem;
@@ -341,7 +387,12 @@ html[data-theme="dark"] .rl-paper__note { color: #9a9aa3; }
               <details class="rl-sub">
                 <summary class="rl-sub__head">
                   <span class="rl-sub__name">{{ st.name }}</span>
-                  <span class="rl-sub__count">{{ st.papers | size }} papers</span>
+                  {%- assign st_papers = st.papers | size -%}
+                  <span class="rl-sub__count">
+                    {%- if st_papers > 0 -%}{{ st_papers }} papers
+                    {%- elsif st.sections and st.sections.size > 0 -%}notes
+                    {%- else -%}0 papers{%- endif -%}
+                  </span>
                 </summary>
                 <div class="rl-sub__body">
                   {%- if st.video_id -%}
@@ -353,9 +404,32 @@ html[data-theme="dark"] .rl-paper__note { color: #9a9aa3; }
                     {%- if st.video_note -%}<span class="rl-video__cap">{{ st.video_note }}</span>{%- endif -%}
                   </a>
                   {%- endif -%}
+                  {%- if st.sections and st.sections.size > 0 -%}
+                    {%- for sec in st.sections -%}
+                    <section class="rl-section">
+                      {%- if sec.heading -%}<h4 class="rl-section__head">{{ sec.heading }}</h4>{%- endif -%}
+                      {%- if sec.notes and sec.notes.size > 0 -%}
+                      <ul class="rl-notes">
+                        {%- for n in sec.notes -%}
+                        <li class="rl-notes__item">
+                          {%- if n.text -%}<span class="rl-notes__text">{{ n.text }}</span>{%- endif -%}
+                          {%- if n.display -%}<span class="rl-notes__eq">{{ n.display }}</span>{%- endif -%}
+                        </li>
+                        {%- endfor -%}
+                      </ul>
+                      {%- endif -%}
+                      {%- if sec.image -%}
+                      <figure class="rl-figure">
+                        <img src="{{ sec.image | relative_url }}" alt="{{ sec.image_alt | default: sec.image_caption | default: sec.heading }}" loading="lazy">
+                        {%- if sec.image_caption -%}<figcaption>{{ sec.image_caption }}</figcaption>{%- endif -%}
+                      </figure>
+                      {%- endif -%}
+                    </section>
+                    {%- endfor -%}
+                  {%- endif -%}
                   {%- if st.papers and st.papers.size > 0 -%}
                     {%- for p in st.papers -%}{%- include rl_paper.html paper=p -%}{%- endfor -%}
-                  {%- elsif st.video_id == nil -%}
+                  {%- elsif st.video_id == nil and st.sections == nil -%}
                     <p class="rl-empty">Papers coming soon.</p>
                   {%- endif -%}
                 </div>
