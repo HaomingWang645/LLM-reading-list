@@ -125,9 +125,6 @@ categories:
                 image_caption: "LLaVA makes the four parts concrete: the vision encoder is the visual representation, the instruction tokens are the text representation, the projection W is the alignment/fusion mechanism, and the language model itself serves as the decoder."
               - text: "This gives the standard modular MLLM pipeline:"
                 display: "image → vision encoder → projector / adapter / resampler → LLM → text response"
-            image: "/assets/img/reading_list/VLMArch.jpg"
-            image_alt: "Two VLM training stages side by side. In pre-training the image encoder and text decoder are frozen and only the multimodal projector is trained; in fine-tuning the projector and text decoder are trained while the image encoder stays frozen."
-            image_caption: "The standard two-stage recipe: pre-training aligns the projector against a frozen encoder and decoder; fine-tuning unfreezes the decoder for instruction following."
 
           - heading: "The vision encoder"
             notes:
@@ -139,6 +136,22 @@ categories:
                 image_caption: "Patch embedding. Each 16×16 px patch flattens to 16·16·3 = 768 values before the linear projection to D. Note the middle panel labels patch size, not grid size: the grid is 14×14."
               - text: "Stacked self-attention blocks then contextualize those patch tokens. The encoder's output is N token vectors in its own width, which the projector maps into the LLM's embedding space so they can simply be concatenated with the text tokens."
               - text: "Two consequences drive much of the spatial-reasoning literature: fine detail is capped by the patch grid, and token count grows quadratically with resolution. That is why resamplers (Q-Former, Perceiver) and dynamic-resolution schemes (Qwen2-VL, LLaVA-NeXT) exist."
+
+          - heading: "VLM training"
+            image: "/assets/img/reading_list/VLMArch.jpg"
+            image_alt: "Two VLM training stages side by side. In pre-training the image encoder and text decoder are frozen and only the multimodal projector is trained; in fine-tuning the projector and text decoder are trained while the image encoder stays frozen."
+            image_caption: "The standard two-stage recipe: pre-training aligns the projector against a frozen encoder and decoder; fine-tuning unfreezes the decoder for instruction following."
+
+          - heading: "Qwen2.5-VL as an example"
+            notes:
+              - text: "Qwen2.5-VL instantiates the same pipeline, but drops the fixed-resolution assumption that produced a constant 196 tokens above. Images enter at native resolution, so the token count becomes a function of the picture itself:"
+                display: "native-resolution image → Conv3D patch embed (2×14×14) → windowed ViT → merger → Qwen2.5 LM decoder"
+                image: "/assets/img/reading_list/qwen2vl.jpg"
+                image_alt: "The Qwen2.5-VL architecture. Images and video at native resolution enter a vision encoder built from RMSNorm and SwiGLU blocks using mostly window attention with occasional full attention, after a Conv3D patch embedding with two-times temporal merging. The resulting visual tokens, varying in count per image, are concatenated with text tokens and fed to the Qwen2.5 language-model decoder. Video frames use dynamic FPS sampling and MRoPE time IDs aligned to absolute time."
+                image_caption: "Qwen2.5-VL. Native-resolution input makes the visual token count vary per image; window attention keeps the cost of a large token sequence manageable."
+              - text: "Because resolution is preserved, a thin 224×28 banner costs only 8 tokens while a tall 1092×8204 page costs 11,427. Detail is no longer capped by a 14×14 grid, but the sequence the LLM must attend over grows with the image."
+              - text: "To make that affordable the encoder uses window attention over 112×112 windows in most blocks, whose cost is linear rather than quadratic in token count, interleaved with occasional full-attention blocks that restore global context. The blocks themselves mirror the LLM: RMSNorm and a SwiGLU feed-forward."
+              - text: "Video reuses the same machinery. A Conv3D patch embedding merges two frames at a time, dynamic FPS sampling controls the frame budget, and MRoPE time IDs are aligned to absolute time so the model can reason about real durations rather than frame indices."
       - { name: "Spatial tasks and benchmarks — overview of VLM capability", papers: [] }
       - { name: "Data-driven methods", papers: [] }
       - { name: "Incorporating 3D modality in the input layer", papers: [] }
