@@ -1,0 +1,8 @@
+{%- comment -%} Renders one YouTube thumbnail card. Params: id, note, label. {%- endcomment -%}
+<a class="rl-video" href="https://youtu.be/{{ include.id }}" target="_blank" rel="noopener noreferrer" aria-label="{{ include.label | default: include.note | default: include.id }} — watch on YouTube (opens in a new tab)">
+  <span class="rl-video__frame">
+    <img class="rl-video__thumb" src="https://img.youtube.com/vi/{{ include.id }}/hqdefault.jpg" alt="" loading="lazy" width="480" height="360">
+    <span class="rl-video__play" aria-hidden="true"></span>
+  </span>
+  {%- if include.note -%}<span class="rl-video__cap">{{ include.note }}</span>{%- endif -%}
+</a>

@@ -105,7 +105,6 @@ html[data-theme="dark"] .rl-body { background: #161618; }
   font-size: .9rem; color: #4b4b55;
 }
 html[data-theme="dark"] .rl-legend__item { color: #b6b6c0; }
-.rl-legend__break { flex-basis: 100%; height: 0; }
 
 /* ---------- badges & tags ---------- */
 .rl-badge {
@@ -180,6 +179,12 @@ details[open] > .rl-cat__head .rl-cat__name::before { transform: rotate(90deg); 
 }
 html[data-theme="dark"] .rl-cat__count { color: #a0a0aa; }
 .rl-cat__body { padding: .5rem 0 .2rem; }
+.rl-cat__intro {
+  margin: .2rem .8rem 1rem; padding-left: 1.1rem;
+  border-left: 2px solid #ece9e2;
+  color: #3f3f49; font-size: .97rem; line-height: 1.6;
+}
+html[data-theme="dark"] .rl-cat__intro { color: #c2c2cb; border-left-color: #2c2c30; }
 
 /* ---------- subtopic ---------- */
 .rl-sub {
@@ -208,9 +213,12 @@ details[open] > .rl-sub__head .rl-sub__name::before { transform: rotate(90deg); 
 .rl-sub__count { font-family: var(--rl-mono); font-size: .8rem; color: #8c8c95; }
 
 /* ---------- video thumbnail ---------- */
+/* Centred, like the figures. `max-width` is the cap; on a narrow column the
+   thumbnail just fills the available width. */
 .rl-video {
-  display: block; width: 100%; max-width: 360px;
-  margin: .5rem .8rem 1.1rem; text-decoration: none;
+  display: block; width: 100%; max-width: 620px;
+  margin: .8rem auto 1.5rem; text-decoration: none;
+  text-align: center;
 }
 .rl-video__frame {
   position: relative; display: block;
@@ -225,15 +233,15 @@ details[open] > .rl-sub__head .rl-sub__name::before { transform: rotate(90deg); 
 .rl-video:hover .rl-video__thumb { transform: scale(1.03); filter: brightness(.9); }
 .rl-video__play {
   position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
-  width: 54px; height: 54px; border-radius: 50%;
+  width: 64px; height: 64px; border-radius: 50%;
   background: rgba(20, 16, 32, .68);
   display: flex; align-items: center; justify-content: center;
   transition: background .2s ease;
 }
 .rl-video:hover .rl-video__play { background: var(--global-theme-color, #b91c1c); }
 .rl-video__play::before {
-  content: ""; display: block; margin-left: 4px;
-  border-style: solid; border-width: 10px 0 10px 17px;
+  content: ""; display: block; margin-left: 5px;
+  border-style: solid; border-width: 12px 0 12px 20px;
   border-color: transparent transparent transparent #fff;
 }
 .rl-video:focus-visible .rl-video__frame {
@@ -242,6 +250,25 @@ details[open] > .rl-sub__head .rl-sub__name::before { transform: rotate(90deg); 
 .rl-video__cap {
   display: block; margin-top: .5rem;
   font-size: .88rem; line-height: 1.45; color: #6b6b73;
+}
+/* A row of video cards (a `videos:` list), centred and wrapping. A lone card in
+   the row keeps the full single-video width; two or more share the column. */
+.rl-videos {
+  display: flex; flex-wrap: wrap; justify-content: center;
+  gap: .2rem 1.4rem; margin: .6rem auto 1rem; max-width: 900px;
+}
+.rl-videos .rl-video {
+  flex: 1 1 300px; max-width: 420px; margin: .6rem 0 1.1rem;
+}
+.rl-videos .rl-video__play { width: 52px; height: 52px; }
+.rl-videos .rl-video__play::before { border-width: 10px 0 10px 16px; }
+/* A section with a single video reads as one figure, at the full width above. */
+.rl-videos .rl-video:only-child { flex-basis: 620px; max-width: 620px; }
+.rl-videos .rl-video:only-child .rl-video__play { width: 64px; height: 64px; }
+.rl-videos .rl-video:only-child .rl-video__play::before { border-width: 12px 0 12px 20px; }
+/* Below the wrap point each card is alone on its line — let it breathe. */
+@media (max-width: 620px) {
+  .rl-videos .rl-video { max-width: 620px; }
 }
 html[data-theme="dark"] .rl-video__cap { color: #9a9aa3; }
 
@@ -353,16 +380,12 @@ html[data-theme="dark"] .rl-paper__note { color: #9a9aa3; }
   <div class="rl-body">
     <div class="rl-body__inner">
 
+      {%- comment -%} Only the reading-depth grades are explained here. The `tags:`
+      pills (★, ▶) still render on papers, but are self-evident. {%- endcomment -%}
       <div class="rl-legend">
         {%- for g in data.legend -%}
         <span class="rl-legend__item">{%- include rl_badge.html grade=g.grade -%}{{ g.label }}</span>
         {%- endfor -%}
-        {%- if data.tags and data.tags.size > 0 -%}
-        <span class="rl-legend__break"></span>
-        {%- for t in data.tags -%}
-        <span class="rl-legend__item"><span class="rl-tag rl-tag--{{ t.color | default: 'gray' }}">{{ t.key }}</span>{{ t.label }}</span>
-        {%- endfor -%}
-        {%- endif -%}
       </div>
 
       <div class="rl-stats">
@@ -389,6 +412,9 @@ html[data-theme="dark"] .rl-paper__note { color: #9a9aa3; }
             <span class="rl-cat__count">{{ cat_count }} {{ cat_unit }}</span>
           </summary>
           <div class="rl-cat__body">
+            {%- if cat.intro -%}
+              <p class="rl-cat__intro">{{ cat.intro }}</p>
+            {%- endif -%}
             {%- if cat.papers and cat.papers.size > 0 -%}
               {%- for p in cat.papers -%}{%- include rl_paper.html paper=p -%}{%- endfor -%}
             {%- endif -%}
@@ -406,18 +432,22 @@ html[data-theme="dark"] .rl-paper__note { color: #9a9aa3; }
                 </summary>
                 <div class="rl-sub__body">
                   {%- if st.video_id -%}
-                  <a class="rl-video" href="https://youtu.be/{{ st.video_id }}" target="_blank" rel="noopener noreferrer" aria-label="{{ st.name }} — watch on YouTube (opens in a new tab)">
-                    <span class="rl-video__frame">
-                      <img class="rl-video__thumb" src="https://img.youtube.com/vi/{{ st.video_id }}/hqdefault.jpg" alt="" loading="lazy" width="480" height="360">
-                      <span class="rl-video__play" aria-hidden="true"></span>
-                    </span>
-                    {%- if st.video_note -%}<span class="rl-video__cap">{{ st.video_note }}</span>{%- endif -%}
-                  </a>
+                    {%- include rl_video.html id=st.video_id note=st.video_note label=st.name -%}
+                  {%- endif -%}
+                  {%- if st.videos and st.videos.size > 0 -%}
+                  <div class="rl-videos">
+                    {%- for v in st.videos -%}{%- include rl_video.html id=v.id note=v.note label=st.name -%}{%- endfor -%}
+                  </div>
                   {%- endif -%}
                   {%- if st.sections and st.sections.size > 0 -%}
                     {%- for sec in st.sections -%}
                     <section class="rl-section">
                       {%- if sec.heading -%}<h4 class="rl-section__head">{{ sec.heading }}</h4>{%- endif -%}
+                      {%- if sec.videos and sec.videos.size > 0 -%}
+                      <div class="rl-videos">
+                        {%- for v in sec.videos -%}{%- include rl_video.html id=v.id note=v.note label=sec.heading -%}{%- endfor -%}
+                      </div>
+                      {%- endif -%}
                       {%- if sec.notes and sec.notes.size > 0 -%}
                       <ul class="rl-notes">
                         {%- for n in sec.notes -%}

@@ -7,12 +7,19 @@
 #   tags:        optional special tags (e.g. NVIDIA) shown in the legend
 #   categories:  top-level sections. Each category has EITHER `papers:` directly,
 #                OR `subtopics:` (each with its own `papers:`), or both.
+#                An optional `intro:` renders one paragraph above them.
 #
 # A subtopic may optionally lead with a video:
 #   - name: "Tokenization"
 #     video_id:   "zduSFxRajkE"   # YouTube id — renders a clickable thumbnail
 #     video_note: "Karpathy — ..."# optional caption under the thumbnail
 #     papers: [ ... ]             # related papers, shown below the video
+#
+# For several videos, use `videos:` instead — they render as a wrapping row of
+# smaller cards. Valid on a subtopic or on a single section:
+#   videos:
+#     - { id: "SMBkImDWOyQ", note: "Jia-Bin Huang — RoPE." }
+#     - { id: "Y-o545eYjXM", note: "..." }
 #
 # Figures (on a section, or on a single note) take:
 #   image: "/assets/img/..."   image_alt: "..."   image_caption: "..."
@@ -27,11 +34,12 @@
 #     grade: "A"            # MUST be exactly one of: A, A-, B+, B, C
 #     url: "https://..."    # optional; omit to render a non-linked title
 #     featured: true        # optional; renders the title in bold
-#     tags: ["NV"]          # optional; each must match a key in the `tags:` block below
+#     tags: ["★"]           # optional; each must match a key in the `tags:` block below
 #
 # Valid tag colors (in the `tags:` block): green, amber, gray
-# A wrong grade renders a red "?" badge; an unknown tag renders a gray "?" pill —
-# both are visible in preview so mistakes are easy to catch.
+# The `tags:` block is not drawn in the legend — the pills are meant to read on
+# their own. A wrong grade renders a red "?" badge; an unknown tag renders a gray
+# "?" pill — both are visible in preview so mistakes are easy to catch.
 # =============================================================================
 
 meta:
@@ -53,12 +61,15 @@ legend:
   - { grade: "C",  label: "Core idea only" }
 
 tags:
-  - { key: "NV", label: "NVIDIA paper", color: "green" }
   - { key: "★",  label: "Must-read",   color: "amber" }
   - { key: "▶",  label: "Video",       color: "gray" }
 
 categories:
   - name: "ML and LLM basics"
+    intro: >
+      I guess you already know how an LLM works, so instead of a detailed tutorial
+      I will list some blogs and YouTube videos with very good visualizations — they
+      are interesting to look at even if you have already known that.
     # Each subsection leads with a video primer (video_id renders a YouTube
     # thumbnail); expand it to see related papers. Add real papers under `papers:`.
     subtopics:
@@ -66,45 +77,171 @@ categories:
         video_id: "LPZh9BOjkQs"
         video_note: "3Blue1Brown — a visual, jargon-light overview of what an LLM is."
         papers:
-          - { title: "Placeholder — add a related paper here", note: "TODO: e.g. the GPT-3 few-shot-learning paper." }
+          - { year: 2023, title: "What Is ChatGPT Doing … and Why Does It Work?", note: "Wolfram, from next-token probabilities up to the whole model. Long, and worth it.", grade: "A-", url: "https://writings.stephenwolfram.com/2023/02/what-is-chatgpt-doing-and-why-does-it-work/", featured: true }
+          - { year: 2025, title: "Deep Dive into LLMs like ChatGPT", note: "Karpathy's 3½-hour tour of the full training stack: pretraining, SFT, RLHF. (Video.)", grade: "A-", url: "https://www.youtube.com/watch?v=7xTGNNLPyMI", tags: ["▶"] }
+          - { year: 2023, title: "Generative AI exists because of the transformer", note: "The Financial Times' scrolling visual explainer. The best thing to send a non-specialist.", grade: "B", url: "https://ig.ft.com/generative-ai/" }
       - name: "Tokenization"
         video_id: "zduSFxRajkE"
         video_note: "Andrej Karpathy — builds a tokenizer from scratch; how text becomes tokens. (Long.)"
         papers:
-          - { title: "Placeholder — add a related paper here", note: "TODO: e.g. BPE / SentencePiece." }
+          - { year: 2015, title: "Neural Machine Translation of Rare Words with Subword Units (BPE)", note: "The merge rule every modern tokenizer still runs.", grade: "B+", url: "https://arxiv.org/abs/1508.07909", featured: true }
+          - { year: 2018, title: "SentencePiece", note: "Tokenization without pre-tokenization, so it works on languages that do not use spaces.", grade: "B", url: "https://arxiv.org/abs/1808.06226" }
+          - { title: "Tiktokenizer", note: "Type text, watch it split. Ten minutes here explains most tokenizer bugs you will ever hit.", grade: "C", url: "https://tiktokenizer.vercel.app/" }
       - name: "Word embeddings and unembedding"
         video_id: "wjZofJX0v4M"
         video_note: "3Blue1Brown — the input and output layers of an LLM, visualized."
         papers:
-          - { title: "Placeholder — add a related paper here", note: "TODO: e.g. word2vec." }
+          - { year: 2013, title: "Efficient Estimation of Word Representations (word2vec)", note: "Where the idea that direction carries meaning starts.", grade: "B+", url: "https://arxiv.org/abs/1301.3781", featured: true }
+          - { title: "The Illustrated Word2vec", note: "Jay Alammar. The analogy arithmetic, drawn rather than asserted.", grade: "A-", url: "https://jalammar.github.io/illustrated-word2vec/" }
+          - { title: "TensorFlow Embedding Projector", note: "Rotate a real embedding space in 3D and look for the neighbourhoods yourself.", grade: "C", url: "https://projector.tensorflow.org/" }
       - name: "Attention in transformers"
         video_id: "eMlx5fFNoYc"
         video_note: "3Blue1Brown — how attention moves information between tokens."
         papers:
-          - { title: "Placeholder — add a related paper here", note: "TODO: e.g. Attention Is All You Need." }
+          - { year: 2017, title: "Attention Is All You Need", note: "The paper. Read it after one of the explainers below, not before.", grade: "A", url: "https://arxiv.org/abs/1706.03762", featured: true, tags: ["★"] }
+          - { title: "The Illustrated Transformer", note: "Jay Alammar. Still the clearest static picture of what Q, K and V are doing.", grade: "A", url: "https://jalammar.github.io/illustrated-transformer/", featured: true }
+          - { title: "Transformer Explainer", note: "A live GPT-2 in the browser: type a sentence, watch the attention weights and logits move.", grade: "A-", url: "https://poloclub.github.io/transformer-explainer/" }
+          - { title: "The Annotated Transformer", note: "Harvard NLP. The 2017 paper, line by line, next to the PyTorch that implements it.", grade: "A-", url: "https://nlp.seas.harvard.edu/annotated-transformer/" }
+          - { title: "Everything about Transformers", note: "Krupa Dave. A long-form walk through the architecture, one component at a time.", grade: "B+", url: "https://www.krupadave.com/articles/everything-about-transformers?x=v3" }
       - name: "GPT from scratch"
         video_id: "kCc8FmEb1nY"
         video_note: "Andrej Karpathy — builds a GPT in code, step by step. (Long.)"
         papers:
-          - { title: "Placeholder — add a related paper here", note: "TODO: add a related paper." }
+          - { title: "GPT in 60 Lines of NumPy", note: "Jay Mody. No framework, no training loop — just the forward pass, so nothing can hide.", grade: "A", url: "https://jaykmody.com/blog/gpt-from-scratch/", featured: true }
+          - { title: "nanoGPT", note: "Karpathy. The smallest repository that still trains a real GPT-2.", grade: "A-", url: "https://github.com/karpathy/nanoGPT" }
+          - { title: "LLM Visualization", note: "Brendan Bycroft. A 3D walkthrough of nano-GPT executing, tensor by tensor.", grade: "A-", url: "https://bbycroft.net/llm" }
+          - { title: "LLMs from Scratch — instruction fine-tuning (ch. 7)", note: "Raschka. The notebook that turns a pretrained base model into one that follows instructions.", grade: "A-", url: "https://github.com/rasbt/LLMs-from-scratch/blob/main/ch07/01_main-chapter-code/ch07.ipynb", featured: true }
+          - { title: "LLMs from Scratch — the full book repository", note: "The preceding six chapters, if you want the whole build rather than the last step.", grade: "B+", url: "https://github.com/rasbt/LLMs-from-scratch" }
 
   - name: "Modern LLM architecture"
-    papers:
-      - { year: 2021, title: "RoFormer (RoPE)", note: "Rotary position embeddings.", grade: "B", url: "https://arxiv.org/abs/2104.09864" }
-      - { year: 2023, title: "Llama 2", note: "Open weights, grouped-query attention, an RLHF recipe.", grade: "A-", url: "https://arxiv.org/abs/2307.09288" }
-      - { year: 2024, title: "Mixtral of Experts", note: "Sparse mixture-of-experts decoder.", grade: "B+", url: "https://arxiv.org/abs/2401.04088" }
+    intro: >
+      Chapter 1 is the standard decoder — patchless, plain, the one in the textbook. Almost
+      nothing in production still looks exactly like it. This chapter is a tour of the parts
+      that were replaced and why: how position gets encoded, how attention was made cheap
+      enough to serve, what the KV cache costs and how to shrink it, what happened to the
+      feed-forward block, and what replaced Adam. Each section opens with a video from
+      Jia-Bin Huang's channel — the best visual explanations of these components anywhere —
+      then lists the papers and blogs behind it.
+    subtopics:
+      - name: "Positional encoding"
+        videos:
+          - { id: "SMBkImDWOyQ", note: "Jia-Bin Huang — RoPE: why rotation, and why it extrapolates." }
+        papers:
+          - { year: 2021, title: "RoFormer (RoPE)", note: "Position as a rotation of the query and key, so attention sees relative offset for free.", grade: "A-", url: "https://arxiv.org/abs/2104.09864", featured: true }
+          - { year: 2021, title: "ALiBi", note: "Skip embeddings entirely: bias the attention scores by distance.", grade: "B+", url: "https://arxiv.org/abs/2108.12409" }
+          - { year: 2023, title: "YaRN", note: "Stretch a trained RoPE to a longer context without retraining from scratch.", grade: "B+", url: "https://arxiv.org/abs/2309.00071" }
+          - { title: "Rotary Embeddings: A Relative Revolution", note: "EleutherAI. The derivation, worked slowly.", grade: "A-", url: "https://blog.eleuther.ai/rotary-embeddings/" }
+          - { title: "You could have designed state-of-the-art positional encoding", note: "Builds RoPE from the requirements up, as if you were inventing it.", grade: "A-", url: "https://huggingface.co/blog/designing-positional-encoding", featured: true }
+
+      - name: "Attention efficiency and the KV cache"
+        videos:
+          - { id: "Y-o545eYjXM", note: "Jia-Bin Huang — MHA → MQA → GQA → MLA → DSA, in one arc." }
+          - { id: "q8holiIirgo", note: "Jia-Bin Huang — DeepSeek V4's compressed attention (CSA/HCA)." }
+          - { id: "gBMO1JZav44", note: "Jia-Bin Huang — FlashAttention: why the bottleneck is memory, not FLOPs." }
+        papers:
+          - { year: 2019, title: "Fast Transformer Decoding (MQA)", note: "One KV head for all query heads. The first cut at the cache.", grade: "B+", url: "https://arxiv.org/abs/1911.02150" }
+          - { year: 2023, title: "GQA", note: "The compromise that shipped: a few KV heads, not one and not all.", grade: "A-", url: "https://arxiv.org/abs/2305.13245", featured: true }
+          - { year: 2023, title: "Llama 2", note: "Open weights, GQA, and an RLHF recipe — the reference implementation of this section.", grade: "A-", url: "https://arxiv.org/abs/2307.09288" }
+          - { year: 2024, title: "DeepSeek-V2 (MLA)", note: "Compress KV into a low-rank latent; cache the latent, not the heads.", grade: "A", url: "https://arxiv.org/abs/2405.04434", featured: true, tags: ["★"] }
+          - { year: 2025, title: "DeepSeek-V3.2 (DSA)", note: "Sparse attention: each query attends to a learned subset of the context.", grade: "B+", url: "https://arxiv.org/abs/2512.02556" }
+          - { year: 2026, title: "DeepSeek-V4", note: "Compressed and hierarchical attention for million-token context.", grade: "B+", url: "https://arxiv.org/abs/2606.19348" }
+          - { year: 2023, title: "StreamingLLM", note: "Attention sinks: keep the first few tokens and the cache can be a rolling window.", grade: "B+", url: "https://arxiv.org/abs/2309.17453" }
+          - { title: "Transformer Inference Arithmetic", note: "Kipply. Work out the KV-cache bytes and the memory-bandwidth bound by hand.", grade: "A", url: "https://kipp.ly/transformer-inference-arithmetic/", featured: true }
+          - { title: "Large Transformer Model Inference Optimization", note: "Lilian Weng's survey of everything in this section, plus quantization and sparsity.", grade: "A-", url: "https://lilianweng.github.io/posts/2023-01-10-inference-optimization/" }
+
+      - name: "Beyond softmax attention"
+        videos:
+          - { id: "pUCWwGR5WmQ", note: "Jia-Bin Huang — linear attention: constant memory, no matter the context length." }
+          - { id: "2eZKT4H9_iQ", note: "Jia-Bin Huang — Exclusive Self-Attention: stop the token attending to itself." }
+        papers:
+          - { year: 2020, title: "Transformers are RNNs (linear attention)", note: "Drop the softmax and the quadratic cost becomes a recurrent state.", grade: "A-", url: "https://arxiv.org/abs/2006.16236", featured: true }
+          - { year: 2023, title: "Mamba", note: "A selective state-space model: linear time, and competitive at last.", grade: "A", url: "https://arxiv.org/abs/2312.00752", featured: true, tags: ["★"] }
+          - { year: 2023, title: "RWKV", note: "An RNN with transformer-grade training parallelism.", grade: "B+", url: "https://arxiv.org/abs/2305.13048" }
+          - { year: 2023, title: "Gated Linear Attention", note: "The gate is what closes most of the quality gap to softmax.", grade: "B+", url: "https://arxiv.org/abs/2312.06635" }
+          - { year: 2026, title: "Exclusive Self Attention (XSA)", note: "Remove the projection onto the token's own value vector. Two lines, consistent gains.", grade: "B+", url: "https://arxiv.org/abs/2603.09078" }
+          - { title: "DeltaNet, explained", note: "Songlin Yang. The clearest account of the linear-attention-as-fast-weights view.", grade: "A-", url: "https://sustcsonglin.github.io/blog/2024/deltanet-1/" }
+          - { title: "The Annotated Mamba", note: "Sasha Rush. Mamba's selective scan, line by line.", grade: "A-", url: "https://srush.github.io/annotated-mamba/hard.html" }
+
+      - name: "Mixture of experts"
+        videos:
+          - { id: "0QQlYR1r6pQ", note: "Jia-Bin Huang — MoE visually explained: routing, load balancing, capacity." }
+        papers:
+          - { year: 2017, title: "Outrageously Large Neural Networks (sparsely-gated MoE)", note: "The original: a top-k gate over thousands of experts.", grade: "B+", url: "https://arxiv.org/abs/1701.06538" }
+          - { year: 2021, title: "Switch Transformer", note: "Route to exactly one expert; the load-balancing loss that made it trainable.", grade: "A-", url: "https://arxiv.org/abs/2101.03961", featured: true }
+          - { year: 2024, title: "Mixtral of Experts", note: "The open-weights sparse MoE decoder everyone benchmarked against.", grade: "B+", url: "https://arxiv.org/abs/2401.04088" }
+          - { year: 2024, title: "DeepSeekMoE", note: "Fine-grained experts plus shared experts; the design most 2025 models copied.", grade: "A-", url: "https://arxiv.org/abs/2401.06066", featured: true }
+          - { title: "Mixture of Experts Explained", note: "Hugging Face. Routing, capacity factor, and why MoE is hard to fine-tune.", grade: "A-", url: "https://huggingface.co/blog/moe" }
+
+      - name: "Memory and knowledge layers"
+        videos:
+          - { id: "87Q8nf1XHKA", note: "Jia-Bin Huang — DeepSeek's Engram: knowledge lookup as a first-class primitive." }
+        papers:
+          - { year: 2019, title: "Large Memory Layers with Product Keys", note: "A near-free lookup table with millions of slots, searched in sublinear time.", grade: "B+", url: "https://arxiv.org/abs/1907.05242" }
+          - { year: 2024, title: "Memory Layers at Scale", note: "The idea, revived and scaled; trainable memory beats extra FFN parameters.", grade: "B+", url: "https://arxiv.org/abs/2412.09764" }
+          - { year: 2026, title: "Engram: Conditional Memory via Scalable Lookup", note: "O(1) N-gram lookup, freeing attention and MoE from storing static facts.", grade: "A-", url: "https://arxiv.org/abs/2601.07372", featured: true }
+          - { title: "deepseek-ai/Engram", note: "The reference implementation.", grade: "C", url: "https://github.com/deepseek-ai/Engram" }
+
+      - name: "Normalization and activation functions"
+        videos:
+          - { id: "JHl_gwVoh-k", note: "Jia-Bin Huang — what normalization layers actually do, and why training breaks without them." }
+          - { id: "JRaPNrpsQ9s", note: "Jia-Bin Huang — the 60-year evolution of the activation function." }
+        papers:
+          - { year: 2016, title: "Layer Normalization", note: "The one the original transformer used.", grade: "B", url: "https://arxiv.org/abs/1607.06450" }
+          - { year: 2019, title: "RMSNorm", note: "Drop the mean subtraction; nothing breaks and it is faster. Now the default.", grade: "B+", url: "https://arxiv.org/abs/1910.07467", featured: true }
+          - { year: 2020, title: "On Layer Normalization in the Transformer Architecture", note: "Why Pre-LN trains without a warmup schedule and Post-LN does not.", grade: "A-", url: "https://arxiv.org/abs/2002.04745", featured: true }
+          - { year: 2020, title: "GLU Variants Improve Transformer", note: "The two-page paper that put SwiGLU in every modern feed-forward block.", grade: "B+", url: "https://arxiv.org/abs/2002.05202" }
+          - { year: 2025, title: "Transformers without Normalization (DyT)", note: "Replace the norm with a scaled tanh. Read it as a probe of what norms were doing.", grade: "B+", url: "https://arxiv.org/abs/2503.10622" }
+
+      - name: "The residual stream"
+        videos:
+          - { id: "LSHTkbnmzy4", note: "Jia-Bin Huang — Attention Residuals: learned, input-dependent mixing across depth." }
+          - { id: "jYn_1PpRzxI", note: "Jia-Bin Huang — hyper-connections and mHC: widening the residual stream." }
+        papers:
+          - { year: 2015, title: "Deep Residual Learning (ResNet)", note: "The identity shortcut. Everything in this section is an attempt to improve on it.", grade: "B+", url: "https://arxiv.org/abs/1512.03385" }
+          - { year: 2024, title: "Hyper-Connections", note: "Widen the residual stream and learn the connection pattern between layers.", grade: "B+", url: "https://arxiv.org/abs/2409.19606" }
+          - { year: 2026, title: "mHC: Manifold-Constrained Hyper-Connections", note: "Project the mixing matrices onto the Birkhoff polytope so identity mapping survives.", grade: "A-", url: "https://arxiv.org/abs/2512.24880", featured: true }
+          - { year: 2026, title: "Attention Residuals", note: "Kimi. Softmax attention over all preceding layer outputs, instead of a fixed unit sum.", grade: "A-", url: "https://arxiv.org/abs/2603.15031" }
+
+      - name: "Optimizers beyond Adam"
+        videos:
+          - { id: "1_nujVNUsto", note: "Jia-Bin Huang — AdamW, and what the weight-decay fix actually fixes." }
+          - { id: "bO5nvE289ec", note: "Jia-Bin Huang — Muon: orthogonalize the update, beat AdamW." }
+        papers:
+          - { year: 2014, title: "Adam", note: "Per-parameter adaptive step sizes. Still the baseline to beat.", grade: "B", url: "https://arxiv.org/abs/1412.6980" }
+          - { year: 2017, title: "Decoupled Weight Decay (AdamW)", note: "L2 penalty and weight decay are not the same thing under Adam.", grade: "B+", url: "https://arxiv.org/abs/1711.05101", featured: true }
+          - { title: "Muon: An optimizer for the hidden layers of neural networks", note: "Keller Jordan's original post. Newton–Schulz orthogonalization of the momentum matrix.", grade: "A", url: "https://kellerjordan.github.io/posts/muon/", featured: true }
+          - { year: 2025, title: "Moonlight — scaling Muon", note: "The weight decay and per-parameter scaling that make Muon work at LLM scale.", grade: "A-", url: "https://arxiv.org/abs/2502.16982" }
+          - { year: 2024, title: "SOAP", note: "Shampoo in an Adam eigenbasis; the other serious second-order contender.", grade: "B", url: "https://arxiv.org/abs/2409.11321" }
+
+      - name: "Low-rank adaptation"
+        videos:
+          - { id: "U80tjcThl9Q", note: "Jia-Bin Huang — LoRA: why two small matrices are enough, and why initialization matters." }
+        papers:
+          - { year: 2021, title: "LoRA", note: "Freeze the base model, learn a rank-r update. The default way to fine-tune anything.", grade: "A", url: "https://arxiv.org/abs/2106.09685", featured: true, tags: ["★"] }
+          - { year: 2023, title: "QLoRA", note: "4-bit base weights plus LoRA adapters; a 65B model fine-tunes on one GPU.", grade: "A-", url: "https://arxiv.org/abs/2305.14314" }
+          - { year: 2024, title: "LoRA Learns Less and Forgets Less", note: "The honest evaluation: it is a regularizer as much as an efficiency trick.", grade: "B+", url: "https://arxiv.org/abs/2405.09673" }
+          - { title: "Practical Tips for Finetuning LLMs Using LoRA", note: "Sebastian Raschka. What rank, which layers, and what actually moves the number.", grade: "B+", url: "https://lightning.ai/pages/community/tutorial/lora-llm/" }
 
   - name: "LLM infrastructure"
-    papers:
-      - { year: 2019, title: "Megatron-LM", note: "Tensor / model parallelism for large transformers.", grade: "B", url: "https://arxiv.org/abs/1909.08053", tags: ["NV"] }
-      - { year: 2022, title: "FlashAttention", note: "IO-aware exact attention.", grade: "A-", url: "https://arxiv.org/abs/2205.14135" }
-      - { year: 2023, title: "vLLM / PagedAttention", note: "KV-cache paging for high-throughput serving.", grade: "A-", url: "https://arxiv.org/abs/2309.06180" }
+    intro: >
+      Chapter 2 asked what the model computes; this chapter asks what it costs to compute it.
+      The sections run bottom-up — from the hardware and the kernels that touch it, through
+      the parallelism that spreads one model over a cluster, to the serving loop that has to
+      answer a request in under a second. Section list drafted; papers coming soon.
+    subtopics:
+      - { name: "The hardware floor: memory bandwidth, arithmetic intensity, and the roofline", papers: [] }
+      - { name: "Kernels and compilers: CUDA, Triton, torch.compile, and fused attention", papers: [] }
+      - { name: "Numerical precision: mixed precision, BF16, FP8, and sub-8-bit training", papers: [] }
+      - { name: "Parallelism: data, tensor, pipeline, sequence, and expert", papers: [] }
+      - { name: "Fitting the model in memory: sharding, checkpointing, and offload", papers: [] }
+      - { name: "The serving loop: continuous batching, paged and prefix KV caches", papers: [] }
+      - { name: "Latency: speculative decoding, chunked prefill, prefill–decode disaggregation", papers: [] }
+      - { name: "Compression: quantization, pruning, and distillation for deployment", papers: [] }
+      - { name: "Mixture-of-experts systems: expert parallelism, routing, and all-to-all", papers: [] }
+      - { name: "Long-context serving: KV offload, cache compression, and reuse across requests", papers: [] }
 
   - name: "LLM reasoning"
-    papers:
-      - { year: 2022, title: "Chain-of-Thought Prompting", note: "Reasoning via intermediate steps.", grade: "A", url: "https://arxiv.org/abs/2201.11903", featured: true, tags: ["★"] }
-      - { year: 2022, title: "Self-Consistency", note: "Sample-and-vote decoding for reasoning.", grade: "B+", url: "https://arxiv.org/abs/2203.11171" }
-      - { year: 2023, title: "Tree of Thoughts", note: "Deliberate search over reasoning paths.", grade: "B", url: "https://arxiv.org/abs/2305.10601" }
+    papers: []
 
   - name: "Reinforcement learning"
     subtopics:
@@ -148,8 +285,8 @@ categories:
             papers:
               - { year: 2025, title: "ScaleRL — The Art of Scaling RL Compute", note: "Sigmoidal compute curves; predict the large run from small ones.", grade: "A-", url: "https://arxiv.org/abs/2510.13786", featured: true }
               - { year: 2025, title: "Scaling Behaviors of LLM RL Post-Training", note: "Power law across model scale × data × compute.", grade: "B+", url: "https://arxiv.org/abs/2509.25300" }
-              - { year: 2025, title: "ProRL", note: "Prolonged RL: the steps axis. Read before ScaleRL.", grade: "A-", url: "https://arxiv.org/abs/2505.24864", tags: ["NV"] }
-              - { year: 2025, title: "BroRL", note: "The rollouts axis; complements ProRL.", grade: "B+", url: "https://arxiv.org/abs/2510.01180", tags: ["NV"] }
+              - { year: 2025, title: "ProRL", note: "Prolonged RL: the steps axis. Read before ScaleRL.", grade: "A-", url: "https://arxiv.org/abs/2505.24864" }
+              - { year: 2025, title: "BroRL", note: "The rollouts axis; complements ProRL.", grade: "B+", url: "https://arxiv.org/abs/2510.01180" }
               - { year: 2025, title: "Qwen3 Technical Report", note: "Unified thinking / non-thinking model with a thinking budget.", grade: "A-", url: "https://arxiv.org/abs/2505.09388" }
 
           - heading: "Cascade and stage-wise RL"
@@ -157,10 +294,10 @@ categories:
               - text: "A single RL stage over a mixture of domains is not what frontier labs actually run. The Nemotron line stages it: SFT, then RL on maths, then code, then tool use, each stage inheriting the previous policy — and the surprise is that later stages do not erase earlier ones as catastrophically as forgetting would predict, provided the stage order and the data mixture are chosen with care."
               - text: "Nemotron-Cascade 2 is the payoff — gold-medal performance at IMO, IOI and ICPC from a 30B mixture-of-experts model — and it gets there with on-policy distillation inside the cascade rather than a bigger final RL run."
             papers:
-              - { year: 2025, title: "AceReason-Nemotron 1.1", note: "SFT and RL synergy for maths and code reasoning.", grade: "B+", url: "https://arxiv.org/abs/2505.16400", tags: ["NV"] }
-              - { year: 2025, title: "Nemotron-Cascade 1", note: "The motivation for staged RL; read as the setup for Cascade 2.", grade: "B+", url: "https://arxiv.org/abs/2512.13607", tags: ["NV"] }
-              - { year: 2026, title: "Nemotron-Cascade 2", note: "IMO/IOI/ICPC gold; 30B MoE; on-policy distillation inside the cascade.", grade: "A", url: "https://arxiv.org/abs/2603.19220", featured: true, tags: ["NV"] }
-              - { year: 2026, title: "Nemotron 3 Super Technical Report", note: "LatentMoE, NVFP4, and simultaneous multi-environment RL.", grade: "A-", url: "https://research.nvidia.com/labs/nemotron/files/NVIDIA-Nemotron-3-Super-Technical-Report.pdf", tags: ["NV"] }
+              - { year: 2025, title: "AceReason-Nemotron 1.1", note: "SFT and RL synergy for maths and code reasoning.", grade: "B+", url: "https://arxiv.org/abs/2505.16400" }
+              - { year: 2025, title: "Nemotron-Cascade 1", note: "The motivation for staged RL; read as the setup for Cascade 2.", grade: "B+", url: "https://arxiv.org/abs/2512.13607" }
+              - { year: 2026, title: "Nemotron-Cascade 2", note: "IMO/IOI/ICPC gold; 30B MoE; on-policy distillation inside the cascade.", grade: "A", url: "https://arxiv.org/abs/2603.19220", featured: true }
+              - { year: 2026, title: "Nemotron 3 Super Technical Report", note: "LatentMoE, NVFP4, and simultaneous multi-environment RL.", grade: "A-", url: "https://research.nvidia.com/labs/nemotron/files/NVIDIA-Nemotron-3-Super-Technical-Report.pdf" }
 
           - heading: "Distillation: on-policy, self, and context"
             notes:
@@ -189,7 +326,7 @@ categories:
               - { year: 2024, title: "Generative Verifiers: RM as Next-Token Prediction", note: "The origin of the generative RM; yes-token probability plus majority vote.", grade: "A", url: "https://arxiv.org/abs/2408.15240", featured: true }
               - { year: 2025, title: "DeepSeek-GRM / SPCT", note: "Online RL for the judge; generates principles, then critiques.", grade: "A-", url: "https://arxiv.org/abs/2504.02495" }
               - { year: 2025, title: "RM-R1: Reward Modeling as Reasoning", note: "Reason first, then score.", grade: "B+", url: "https://arxiv.org/abs/2505.02387" }
-              - { year: 2025, title: "HelpSteer3-Preference", note: "40k preference samples; the data behind an RM-Bench SOTA.", grade: "B+", url: "https://arxiv.org/abs/2505.11475", tags: ["NV"] }
+              - { year: 2025, title: "HelpSteer3-Preference", note: "40k preference samples; the data behind an RM-Bench SOTA.", grade: "B+", url: "https://arxiv.org/abs/2505.11475" }
               - { year: 2026, title: "P-GenRM", note: "A personalised generative reward model.", grade: "B", url: "https://arxiv.org/abs/2602.12116" }
 
           - heading: "Process reward models"
@@ -223,7 +360,7 @@ categories:
               - text: "RewardBench 2 is built around the failure mode rather than around agreement: it asks whether a reward model can be hacked. Long-form RewardBench extends the question to responses long enough that a single scalar has to summarise pages."
             papers:
               - { year: 2024, title: "How to Evaluate Reward Models for RLHF (PPE)", note: "The offline–online gap: benchmark rank ≠ downstream policy quality.", grade: "A-", url: "https://arxiv.org/abs/2410.14872", featured: true }
-              - { year: 2024, title: "HelpSteer3", note: "Feedback and edit data; inference-time scaling of the RM.", grade: "B+", url: "https://arxiv.org/abs/2503.04378", tags: ["NV"] }
+              - { year: 2024, title: "HelpSteer3", note: "Feedback and edit data; inference-time scaling of the RM.", grade: "B+", url: "https://arxiv.org/abs/2503.04378" }
               - { year: 2025, title: "RewardBench 2", note: "Built around reward hacking rather than agreement.", grade: "B+", url: "https://arxiv.org/abs/2506.01937" }
               - { year: 2026, title: "Long-form RewardBench", note: "Reward modelling when the response is pages long.", grade: "B", url: "https://arxiv.org/abs/2603.12963" }
 
@@ -339,7 +476,7 @@ categories:
               - text: "ReTool supplies the missing first stage: cold-start on synthesised tool traces so that the outcome-reward RL has something non-zero to reinforce."
             papers:
               - { year: 2025, title: "ToolRL", note: "Decomposed reward design for tool calls; read as the thesis.", grade: "A-", url: "https://arxiv.org/abs/2504.13958" }
-              - { year: 2025, title: "Nemotron-Tool-N1", note: "Binary reward, no reasoning supervision — and it generalises better.", grade: "A-", url: "https://arxiv.org/abs/2505.00949", featured: true, tags: ["NV"] }
+              - { year: 2025, title: "Nemotron-Tool-N1", note: "Binary reward, no reasoning supervision — and it generalises better.", grade: "A-", url: "https://arxiv.org/abs/2505.00949", featured: true }
               - { year: 2025, title: "ReTool", note: "Cold-start synthesis, then outcome-reward RL.", grade: "B+", url: "https://arxiv.org/abs/2504.09442" }
 
           - heading: "Generalist agent RL frameworks"
@@ -350,7 +487,7 @@ categories:
               - { year: 2025, title: "WebAgent-R1", note: "End-to-end RL for web agents.", grade: "B+", url: "https://arxiv.org/abs/2505.16421" }
               - { year: 2025, title: "Kimi K2.5 Agent Swarm", note: "Multi-agent orchestration for agentic tasks.", grade: "B", url: "https://moonshotai.github.io/Kimi-K2.5/" }
               - { year: 2026, title: "RLAnything", note: "Joint optimisation of environment, policy and reward model.", grade: "B+", url: "https://arxiv.org/abs/2602.02488" }
-              - { year: 2026, title: "ProRL Agent", note: "Rollout-as-a-service for multi-turn agent RL.", grade: "B+", url: "https://arxiv.org/abs/2603.18815", tags: ["NV"] }
+              - { year: 2026, title: "ProRL Agent", note: "Rollout-as-a-service for multi-turn agent RL.", grade: "B+", url: "https://arxiv.org/abs/2603.18815" }
 
           - heading: "Why agent RL fails, and self-evolution"
             notes:
@@ -519,7 +656,42 @@ categories:
               - { title: "Scaling Spatial Intelligence with Multimodal Foundation Models", note: "The SenseNova-SI scaling curves shown above.", grade: "A-", url: "https://arxiv.org/abs/2511.13719" }
               - { title: "How Far are VLMs from Visual Spatial Intelligence? A Benchmark-Driven Perspective", grade: "B+", url: "https://arxiv.org/abs/2509.18905" }
 
-      - { name: "Incorporating 3D modality in the input layer", papers: [] }
+      - name: "Incorporating 3D modality in the input layer"
+        sections:
+          - heading: "The idea: hand the model depth instead of hoping it infers depth"
+            notes:
+              - text: "If a VQA pair is too weak a signal to teach geometry from pixels alone, one response is to stop asking. Rather than hoping the model recovers 3D structure from a flat image, feed it a 3D signal directly at the input layer, alongside the RGB tokens."
+              - text: "SpatialRGPT is the clearest instance. Depth enters as a second visual stream, and questions are asked about explicitly marked regions rather than the whole image:"
+                image: "/assets/img/reading_list/spatialrgpt.png"
+                image_width: 700
+                image_alt: "The SpatialRGPT architecture. An input RGB image with optional depth passes through a frozen visual backbone. Region masks or boxes are fed to a region feature extractor, whose output is split between a trainable RGB connector and a trainable depth connector. These produce interleaved rgb and depth tokens for each region, which are placed into the language model's prompt alongside the question — what is the distance between the red region and the orange region — and the large language model answers that they are around 45 centimetres apart."
+                image_caption: "SpatialRGPT. Each referenced region contributes a pair of tokens, <rgb> and <depth>, spliced into the prompt where the question points at it. The visual backbone is frozen (snowflake); the region feature extractor, both connectors and the LLM are tuned (flame)."
+
+          - heading: "How it works"
+            notes:
+              - text: "The depth map is not ground truth. It comes from an off-the-shelf monocular estimator — Metric3Dv2 in SpatialRGPT's case, chosen because it is trained across indoor and outdoor scenes and so generalises to in-the-wild images."
+              - text: "That depth map is then encoded by the same frozen visual backbone that encodes the RGB image. A region feature extractor turns each user-supplied mask or box into a pixel-level embedding, and two separate connectors project the RGB and depth features into the language embedding space."
+              - text: "The depth connector is the plugin. Its weights are initialised from the trained RGB connector and then tuned only on spatial QA, which is what lets depth be optional: with no depth map supplied, the model falls back to RGB-only rather than breaking."
+              - text: "Inside the prompt, special placeholder tokens are substituted with the corresponding region embeddings, so a question that points at two regions becomes a token sequence the LLM can attend over:"
+                display: "“What is the distance between <region₁> and <region₂>?” → … <rgb₁><depth₁> … <rgb₂><depth₂> …"
+              - text: "The training data is generated by the same kind of pipeline as the previous subtopic, but lifted to 3D scene graphs. Open-vocabulary detection and segmentation (GroundingDINO, SAM) find the regions, Metric3Dv2 supplies metric depth, and camera intrinsics and extrinsics are themselves estimated (WildCamera, PerspectiveFields) so the point cloud can be canonicalised. The resulting Open Spatial Dataset covers roughly 1M images and 5M regions from OpenImages, yielding about 8M template-based QAs and 700K LLM-written ones."
+
+          - heading: "Limitations"
+            notes:
+              - text: "The 3D is borrowed, not learned. Depth arrives from a frozen external estimator, so its errors are simply inherited: no gradient flows back to correct a bad depth map, and the VLM has no way to notice one. The approach upgrades the input, not the model's ability to perceive geometry."
+              - text: "Metric depth from a single image is ill-posed without the camera. SpatialRGPT recovers intrinsics and extrinsics with further estimators, so scale errors from three separate off-the-shelf models compound before the LLM sees a single token."
+              - text: "The paper's own stated limitation is the use of axis-aligned bounding boxes. An AABB misrepresents any rotated object, and the accurate alternative — oriented bounding boxes — needs object pose estimation, which has no reliable open-world solution."
+              - text: "Regions must be supplied. The model answers questions about regions you point at, which makes it a strong referring-expression reasoner but not a free-form scene understander. Something else has to decide what the regions are."
+              - text: "Finally, it is single-image. Depth is computed per frame and nothing accumulates into a persistent map across a video. That leaves the tasks the benchmarks showed to be hardest — route planning, appearance order, egocentric-to-allocentric transformation — largely untouched, since a depth channel supplies metric distance rather than a viewpoint-independent model of the scene."
+
+          - heading: "Reading"
+            papers:
+              - { title: "SpatialRGPT: Grounded Spatial Reasoning in Vision-Language Models", note: "Depth as a plugin modality plus region tokens; NeurIPS 2024. The architecture above.", grade: "A-", url: "https://arxiv.org/abs/2406.01584", featured: true }
+              - { title: "Spatial-MLLM: Boosting MLLM Capabilities in Visual-based Spatial Intelligence", grade: "B+", url: "https://arxiv.org/abs/2505.23747" }
+              - { title: "SSR: Enhancing Depth Perception in Vision-Language Models via Rationale-Guided Spatial Reasoning", note: "Turns the depth signal into a reasoning rationale rather than extra input tokens.", grade: "B+", url: "https://arxiv.org/abs/2505.12448" }
+              - { title: "GeoSense: Internalizing Geometric Necessity Perception for Multimodal Reasoning", note: "Adds a geometry input channel, but injects it only when 2D cues are judged insufficient — a direct answer to the always-on cost of the approach above.", grade: "B+", url: "https://arxiv.org/abs/2603.10370" }
+              - { title: "Thinking with Geometry: Active Geometry Integration for Spatial Reasoning", note: "Argues fusing geometry as a global, indiscriminate stream causes semantic-geometry misalignment; GeoThinker instead lets the model query geometric evidence on demand.", grade: "B+", url: "https://arxiv.org/abs/2602.06037" }
+
       - { name: "Chain-of-thought reasoning for spatial tasks", papers: [] }
       - { name: "Spatial-aware RL", papers: [] }
       - { name: "Promising research directions", papers: [] }
