@@ -1,7 +1,2 @@
-introductory text: 
-1 architecture
-image (qwen2vl.jpg)
+introductory text: apparently the standard design above may not be optimal, for current vlm there are many designs in the architecture for performance and efficiency
 
-2 training
-
-3 useful links
