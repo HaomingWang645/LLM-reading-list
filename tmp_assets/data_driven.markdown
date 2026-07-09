@@ -1,0 +1,1 @@
+The most intuitive thought is that current vlm perform bad in spatial reasoing because in their pretraining data most just annotate the semantic, data with 3d spatial annotation is rare. this indicates that if we have enough 
