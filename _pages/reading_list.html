@@ -11,22 +11,25 @@ description: A curated, structured reading list on large language models.
 {%- comment -%} ---- compute totals ---- {%- endcomment -%}
 {%- assign all_papers = "" | split: "" -%}
 {%- assign subtopic_count = 0 -%}
+{%- assign category_count = 0 -%}
 {%- for cat in data.categories -%}
-  {%- if cat.papers -%}{%- assign all_papers = all_papers | concat: cat.papers -%}{%- endif -%}
-  {%- if cat.subtopics -%}
-    {%- assign subtopic_count = subtopic_count | plus: cat.subtopics.size -%}
-    {%- for st in cat.subtopics -%}
-      {%- if st.papers -%}{%- assign all_papers = all_papers | concat: st.papers -%}{%- endif -%}
-      {%- if st.sections -%}
-        {%- for sec in st.sections -%}
-          {%- if sec.papers -%}{%- assign all_papers = all_papers | concat: sec.papers -%}{%- endif -%}
-        {%- endfor -%}
-      {%- endif -%}
-    {%- endfor -%}
-  {%- endif -%}
+  {%- unless cat.hidden -%}
+    {%- assign category_count = category_count | plus: 1 -%}
+    {%- if cat.papers -%}{%- assign all_papers = all_papers | concat: cat.papers -%}{%- endif -%}
+    {%- if cat.subtopics -%}
+      {%- assign subtopic_count = subtopic_count | plus: cat.subtopics.size -%}
+      {%- for st in cat.subtopics -%}
+        {%- if st.papers -%}{%- assign all_papers = all_papers | concat: st.papers -%}{%- endif -%}
+        {%- if st.sections -%}
+          {%- for sec in st.sections -%}
+            {%- if sec.papers -%}{%- assign all_papers = all_papers | concat: sec.papers -%}{%- endif -%}
+          {%- endfor -%}
+        {%- endif -%}
+      {%- endfor -%}
+    {%- endif -%}
+  {%- endunless -%}
 {%- endfor -%}
 {%- assign total_papers = all_papers | size -%}
-{%- assign category_count = data.categories | size -%}
 
 {%- comment -%} All styles below are scoped to .rl (plus a couple of page-only wrapper tweaks).
 This inline <style> is only loaded on this page. {%- endcomment -%}
@@ -402,6 +405,7 @@ html[data-theme="dark"] .rl-paper__note { color: #9a9aa3; }
       </div>
 
       {%- for cat in data.categories -%}
+        {%- unless cat.hidden -%}
         {%- comment -%} Categories with subtopics report a section count; flat ones report a paper count. {%- endcomment -%}
         {%- if cat.subtopics and cat.subtopics.size > 0 -%}
           {%- assign cat_count = cat.subtopics.size -%}
@@ -509,6 +513,7 @@ html[data-theme="dark"] .rl-paper__note { color: #9a9aa3; }
             {%- endunless -%}
           </div>
         </details>
+        {%- endunless -%}
       {%- endfor -%}
 
     </div>

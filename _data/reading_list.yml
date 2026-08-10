@@ -1449,6 +1449,7 @@ categories:
               - { year: 2026, title: "Scaling Beyond Masked Diffusion Language Models", note: "Compare Pareto frontiers across compute and throughput, not one benchmark column.", grade: "A", url: "https://arxiv.org/abs/2602.15014", featured: true, tags: ["★"] }
 
   - name: "Others"
+    hidden: true
     intro: >
       This section is intentionally not a miscellaneous drawer. Modern models are often
       easier to improve than to measure, so it collects three questions that cut across
