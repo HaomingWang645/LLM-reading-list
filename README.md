@@ -8,7 +8,9 @@ hosted on GitHub Pages.
 
 ## Structure
 
-The reading list (see [`_pages/reading_list.md`](_pages/reading_list.md)) is organized into:
+The reading list content lives in [`_data/reading_list.yml`](_data/reading_list.yml)
+and is rendered by [`_pages/reading_list.html`](_pages/reading_list.html). It is
+organized into:
 
 1. ML and LLM basics
 2. Modern LLM architecture
@@ -23,14 +25,18 @@ The reading list (see [`_pages/reading_list.md`](_pages/reading_list.md)) is org
 
 ## Adding papers
 
-Edit [`_pages/reading_list.md`](_pages/reading_list.md), add a bullet under the
-relevant heading, and commit to `main`. The site rebuilds and deploys automatically
-via GitHub Actions.
+Edit [`_data/reading_list.yml`](_data/reading_list.yml), add an entry under the
+relevant category, subtopic, or section, and commit to `main`. The site rebuilds
+and deploys automatically via GitHub Actions.
 
 Suggested entry format:
 
-```markdown
-- [Paper Title](https://arxiv.org/abs/xxxx.xxxxx) — *Authors, Venue Year.* One-line takeaway.
+```yaml
+- year: 2026
+  title: "Paper Title"
+  note: "One-line takeaway."
+  grade: "A-"
+  url: "https://arxiv.org/abs/xxxx.xxxxx"
 ```
 
 ## Local preview (optional)

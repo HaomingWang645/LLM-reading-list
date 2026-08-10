@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="390" viewBox="0 0 960 390" role="img" aria-labelledby="title desc">
+  <title id="title">A world model closes a prediction and control loop</title>
+  <desc id="desc">Observations are encoded into a state. A dynamics model predicts the next state conditioned on an action. A policy chooses actions from imagined futures, and a decoder predicts observations. Prediction becomes useful when it supports counterfactual control.</desc>
+  <rect width="960" height="390" rx="18" fill="#faf9f7"/>
+  <g font-family="Inter,Arial,sans-serif" fill="#29263d">
+    <text x="480" y="38" text-anchor="middle" font-size="22" font-weight="700">Prediction is not yet a world model; the loop must answer “what if I act?”</text>
+    <rect x="55" y="148" width="145" height="70" rx="14" fill="#e9e4f7" stroke="#8b78b8"/>
+    <text x="127" y="177" text-anchor="middle" font-size="16" font-weight="700">observation oₜ</text>
+    <text x="127" y="201" text-anchor="middle" font-size="14">pixels, tokens, sensors</text>
+    <rect x="270" y="148" width="135" height="70" rx="14" fill="#eeeafb" stroke="#8b78b8"/>
+    <text x="337" y="177" text-anchor="middle" font-size="16" font-weight="700">state sₜ</text>
+    <text x="337" y="201" text-anchor="middle" font-size="14">compressed history</text>
+    <rect x="505" y="132" width="185" height="102" rx="14" fill="#ddd5f1" stroke="#7459a6" stroke-width="2"/>
+    <text x="597" y="164" text-anchor="middle" font-size="16" font-weight="700">dynamics model</text>
+    <text x="597" y="190" text-anchor="middle" font-size="15">p(sₜ₊₁ | sₜ, aₜ)</text>
+    <text x="597" y="214" text-anchor="middle" font-size="13" fill="#686373">roll forward imagined futures</text>
+    <rect x="760" y="148" width="145" height="70" rx="14" fill="#dceee8" stroke="#3d8875"/>
+    <text x="832" y="177" text-anchor="middle" font-size="16" font-weight="700">next state sₜ₊₁</text>
+    <text x="832" y="201" text-anchor="middle" font-size="14">or predicted pixels</text>
+    <g stroke="#716b80" stroke-width="3" fill="none">
+      <line x1="200" y1="183" x2="270" y2="183"/><line x1="405" y1="183" x2="505" y2="183"/><line x1="690" y1="183" x2="760" y2="183"/>
+    </g>
+    <g fill="#716b80"><path d="M270 183 l-11 -6 v12z"/><path d="M505 183 l-11 -6 v12z"/><path d="M760 183 l-11 -6 v12z"/></g>
+    <rect x="455" y="292" width="285" height="58" rx="13" fill="#fff2df" stroke="#c48943"/>
+    <text x="597" y="317" text-anchor="middle" font-size="16" font-weight="700">policy / planner chooses aₜ</text>
+    <text x="597" y="338" text-anchor="middle" font-size="13">compare consequences, not just likelihoods</text>
+    <path d="M832 218 C832 290 744 321 720 321" fill="none" stroke="#c48943" stroke-width="3"/>
+    <path d="M455 321 C420 321 420 235 505 214" fill="none" stroke="#c48943" stroke-width="3"/>
+    <path d="M720 321 l10 -7 v14z" fill="#c48943"/>
+    <path d="M505 214 l-11 0 l6 10z" fill="#c48943"/>
+    <text x="112" y="292" font-size="14" fill="#686373">The state need not be visual.</text>
+    <text x="112" y="315" font-size="14" fill="#686373">Its test is sufficiency for prediction,</text>
+    <text x="112" y="338" font-size="14" fill="#686373">planning, and intervention.</text>
+  </g>
+</svg>

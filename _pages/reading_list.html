@@ -17,6 +17,11 @@ description: A curated, structured reading list on large language models.
     {%- assign subtopic_count = subtopic_count | plus: cat.subtopics.size -%}
     {%- for st in cat.subtopics -%}
       {%- if st.papers -%}{%- assign all_papers = all_papers | concat: st.papers -%}{%- endif -%}
+      {%- if st.sections -%}
+        {%- for sec in st.sections -%}
+          {%- if sec.papers -%}{%- assign all_papers = all_papers | concat: sec.papers -%}{%- endif -%}
+        {%- endfor -%}
+      {%- endif -%}
     {%- endfor -%}
   {%- endif -%}
 {%- endfor -%}
@@ -424,6 +429,12 @@ html[data-theme="dark"] .rl-paper__note { color: #9a9aa3; }
                 <summary class="rl-sub__head">
                   <span class="rl-sub__name">{{ st.name }}</span>
                   {%- assign st_papers = st.papers | size -%}
+                  {%- if st.sections -%}
+                    {%- for sec in st.sections -%}
+                      {%- assign section_papers = sec.papers | size -%}
+                      {%- assign st_papers = st_papers | plus: section_papers -%}
+                    {%- endfor -%}
+                  {%- endif -%}
                   <span class="rl-sub__count">
                     {%- if st_papers > 0 -%}{{ st_papers }} papers
                     {%- elsif st.sections and st.sections.size > 0 -%}notes
@@ -483,7 +494,7 @@ html[data-theme="dark"] .rl-paper__note { color: #9a9aa3; }
                   {%- if st.papers and st.papers.size > 0 -%}
                     {%- for p in st.papers -%}{%- include rl_paper.html paper=p -%}{%- endfor -%}
                   {%- elsif st.video_id == nil and st.sections == nil -%}
-                    <p class="rl-empty">Papers coming soon.</p>
+                    <p class="rl-empty">No readings listed.</p>
                   {%- endif -%}
                 </div>
               </details>
@@ -494,7 +505,7 @@ html[data-theme="dark"] .rl-paper__note { color: #9a9aa3; }
             {%- assign has_subs = false -%}
             {%- if cat.subtopics and cat.subtopics.size > 0 -%}{%- assign has_subs = true -%}{%- endif -%}
             {%- unless has_direct or has_subs -%}
-              <p class="rl-empty">Papers coming soon.</p>
+              <p class="rl-empty">No readings listed.</p>
             {%- endunless -%}
           </div>
         </details>

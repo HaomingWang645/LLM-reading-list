@@ -51,7 +51,7 @@ meta:
     topics, with reading-depth recommendations.
   author: "Haoming Wang"
   version: "v1"
-  updated: "June 2026"
+  updated: "August 2026"
 
 legend:
   - { grade: "A",  label: "Deep read" }
@@ -224,24 +224,321 @@ categories:
 
   - name: "LLM infrastructure"
     intro: >
-      Chapter 2 asked what the model computes; this chapter asks what it costs to compute it.
-      The sections run bottom-up — from the hardware and the kernels that touch it, through
-      the parallelism that spreads one model over a cluster, to the serving loop that has to
-      answer a request in under a second. Section list drafted; papers coming soon.
+      Chapter 2 asked what a model computes; this chapter asks which physical resource pays
+      for it. Read the sections as a sequence of resource transformations: FLOPs become
+      memory traffic, kernels try to keep that traffic on chip, precision shrinks it,
+      sharding trades memory for collectives, and the serving runtime turns ragged requests
+      into dense work. The recurring mistake is to optimize the advertised resource instead
+      of measuring the bottleneck that is actually on the critical path.
     subtopics:
-      - { name: "The hardware floor: memory bandwidth, arithmetic intensity, and the roofline", papers: [] }
-      - { name: "Kernels and compilers: CUDA, Triton, torch.compile, and fused attention", papers: [] }
-      - { name: "Numerical precision: mixed precision, BF16, FP8, and sub-8-bit training", papers: [] }
-      - { name: "Parallelism: data, tensor, pipeline, sequence, and expert", papers: [] }
-      - { name: "Fitting the model in memory: sharding, checkpointing, and offload", papers: [] }
-      - { name: "The serving loop: continuous batching, paged and prefix KV caches", papers: [] }
-      - { name: "Latency: speculative decoding, chunked prefill, prefill–decode disaggregation", papers: [] }
-      - { name: "Compression: quantization, pruning, and distillation for deployment", papers: [] }
-      - { name: "Mixture-of-experts systems: expert parallelism, routing, and all-to-all", papers: [] }
-      - { name: "Long-context serving: KV offload, cache compression, and reuse across requests", papers: [] }
+      - name: "The hardware floor: memory bandwidth, arithmetic intensity, and the roofline"
+        sections:
+          - heading: "Count bytes before FLOPs"
+            notes:
+              - text: "Peak FLOPs is a ceiling, not a prediction. The roofline bounds useful throughput by the smaller of compute capacity and the rate at which memory can feed that compute:"
+                display: "achievable FLOP/s ≤ min(peak FLOP/s, arithmetic intensity × memory bandwidth)"
+              - text: "One request crosses both regimes. Prefill turns many prompt tokens into large matrix–matrix multiplies and is usually compute-heavy; low-concurrency decode repeatedly streams weights and a growing KV cache to emit one token and is usually bandwidth-heavy. The same GPU can be compute-starved and memory-starved milliseconds apart."
+              - text: "Batching and reuse raise arithmetic intensity; fusion and quantization reduce bytes; algorithmic changes reduce operations. FlashAttention did not remove dense attention’s quadratic arithmetic—it won by avoiding a quadratic score matrix in HBM."
+              - text: "Roofline is a first-order diagnostic, not a benchmark. Small shapes, occupancy, launch latency, collectives, and irregular MoE routing can leave a kernel far below either roof."
+            image: "/assets/img/reading_list/systems_roofline.svg"
+            image_width: 860
+            image_alt: "A roofline chart placing decode on the memory-bandwidth slope and batched prefill near the compute ceiling."
+            image_caption: "One model, two hardware regimes. A useful optimization moves the measured bottleneck rather than merely increasing a headline peak."
+            papers:
+              - { year: 2009, title: "Roofline: An Insightful Visual Performance Model", note: "The enduring model for deciding whether arithmetic or data movement limits a workload.", grade: "A", url: "https://digicoll.lib.berkeley.edu/record/136692/files/EECS-2008-134.pdf", featured: true, tags: ["★"] }
+              - { title: "How to Scale Your Model — the JAX Scaling Book", note: "A modern worked systems book connecting accelerators, collectives, sharding, and inference arithmetic.", grade: "A", url: "https://jax-ml.github.io/scaling-book/", featured: true }
+              - { title: "Inference — the JAX Scaling Book", note: "Derives why prefill and decode usually occupy different hardware regimes.", grade: "A-", url: "https://jax-ml.github.io/scaling-book/inference/" }
+              - { year: 2022, title: "FlashAttention", note: "Made I/O complexity part of the transformer algorithm rather than an implementation footnote.", grade: "A", url: "https://arxiv.org/abs/2205.14135", featured: true, tags: ["★"] }
+
+      - name: "Kernels and compilers: CUDA, Triton, torch.compile, and fused attention"
+        sections:
+          - heading: "An operator is not a kernel"
+            notes:
+              - text: "A mathematical operator says what to compute. A kernel is a schedule for moving tiles through HBM, caches, shared memory, registers, and tensor cores. Eager code often writes each intermediate to HBM; fusion earns speed by keeping values on chip and avoiding launches."
+              - text: "The abstraction ladder runs from CUDA threads, through Triton tiled programs, to torch.compile graph capture and generated kernels. Each higher rung buys productivity while retaining shape-dependent cliffs, graph breaks, and escape hatches."
+              - text: "FlashAttention’s generations are a history of hardware co-design: FA1 reduces I/O, FA2 repairs work partitioning, FA3 overlaps data movement with Hopper tensor cores, and FA4 changes the pipeline again for Blackwell. Portable rarely means optimal."
+              - text: "Prefill and decode deserve separate kernels. Square attention and one-query-against-long-KV attention have different tiling, occupancy, and reduction problems even if an API calls both attention."
+            papers:
+              - { year: 2019, title: "Triton: An Intermediate Language and Compiler for Tiled Neural Network Computations", note: "The foundational case for exposing tiles rather than threads.", grade: "B+", url: "https://research.ibm.com/publications/triton-an-intermediate-language-and-compiler-for-tiled-neural-network-computations" }
+              - { year: 2024, title: "PyTorch 2: Dynamic Python Bytecode Transformation and Graph Compilation", note: "Dynamo and Inductor, including the boundary between Python flexibility and compiler visibility.", grade: "A-", url: "https://pytorch.org/assets/pytorch2-2.pdf" }
+              - { year: 2024, title: "FlashAttention-3", note: "Warp specialization, asynchronous pipelines, and FP8 on Hopper.", grade: "A-", url: "https://arxiv.org/abs/2407.08608" }
+              - { year: 2025, title: "FlexAttention", note: "Expose the score modification and let the compiler recover a fused kernel.", grade: "A-", url: "https://proceedings.mlsys.org/paper_files/paper/2025/hash/61a9278dfef5f871b5e472389f8d6fa1-Abstract-Conference.html" }
+              - { year: 2026, title: "FlashAttention-4", note: "A Blackwell-era study of algorithm and kernel-pipeline co-design.", grade: "A", url: "https://arxiv.org/abs/2603.05451", featured: true, tags: ["★"] }
+
+      - name: "Numerical precision: mixed precision, BF16, FP8, and sub-8-bit training"
+        sections:
+          - heading: "Precision is a contract between tensors"
+            notes:
+              - text: "“Training in FP8” never means every tensor is FP8. Storage, GEMM inputs, accumulators, reduced gradients, optimizer moments, and master weights need different range and resolution. The full contract—not one dtype label—is the method."
+              - text: "FP16’s narrow exponent motivates loss scaling; BF16 keeps FP32’s exponent range and sacrifices mantissa precision. FP8 then requires explicit scales: E4M3 favors precision, E5M2 favors range, and microscaling reduces the block over which one outlier taxes every other value."
+              - text: "FP4 is mainly a scaling-and-outlier-control result, not the act of deleting four more bits. Current NVFP4 evidence combines fine blocks, two-level scaling, transforms, stochastic rounding, and selected high-precision operations."
+                display: "less exponent → clipping; less mantissa → rounding; smaller scale blocks → less outlier tax, more metadata"
+              - text: "Narrower formats help only when hardware has native kernels and the runtime fuses scaling, transposition, and communication. Conversion overhead can otherwise consume the theoretical win."
+            papers:
+              - { year: 2017, title: "Mixed Precision Training", note: "Master weights and loss scaling: the foundational recipe.", grade: "A", url: "https://arxiv.org/abs/1710.03740", featured: true, tags: ["★"] }
+              - { year: 2019, title: "A Study of BFLOAT16 for Deep Learning Training", note: "Why exponent range mattered more than FP16’s extra mantissa bits.", grade: "A-", url: "https://arxiv.org/abs/1905.12322" }
+              - { year: 2022, title: "FP8 Formats for Deep Learning", note: "Defines E4M3 and E5M2 and the modern FP8 division of labor.", grade: "A", url: "https://arxiv.org/abs/2209.05433", featured: true }
+              - { year: 2024, title: "Scaling FP8 Training to Trillion-Token LLMs", note: "Long runs reveal stability problems that short demonstrations miss.", grade: "A-", url: "https://arxiv.org/abs/2409.12517" }
+              - { year: 2025, title: "Pretraining Large Language Models with NVFP4", note: "The strongest public FP4 convergence result so far; hardware- and recipe-specific.", grade: "A-", url: "https://arxiv.org/abs/2509.25149" }
+
+      - name: "Parallelism: data, tensor, pipeline, sequence, and expert"
+        sections:
+          - heading: "Shard a tensor axis; pay a collective"
+            notes:
+              - text: "Every parallelism cuts a different axis and receives a different bill: data parallelism synchronizes gradients, tensor parallelism communicates inside layers, pipeline parallelism sends activations and creates bubbles, context parallelism exchanges attention state, and expert parallelism dispatches tokens with all-to-all."
+              - text: "Topology is the governing rule. Put the chattiest dimension on the fastest links: tensor parallelism generally stays within an NVLink domain, while pipeline and data parallelism can cross slower boundaries because their communication is less frequent."
+              - text: "More shards can slow a run. GEMMs become narrower, collective latency dominates, and pipeline bubbles grow. The plan is an optimization over model shape, context, microbatch, topology, and memory—not a checklist."
+              - text: "“Sequence parallelism” is overloaded. Megatron shards activations around tensor-parallel regions; Ulysses and Ring Attention shard the attention context itself. Calling the latter context parallelism keeps the communication bill clear."
+            papers:
+              - { year: 2019, title: "Megatron-LM", note: "The practical origin of transformer tensor parallelism.", grade: "A", url: "https://arxiv.org/abs/1909.08053", featured: true, tags: ["★"] }
+              - { year: 2019, title: "GPipe", note: "Pipeline microbatches and the bubble, exposed cleanly.", grade: "B+", url: "https://arxiv.org/abs/1811.06965" }
+              - { year: 2021, title: "Efficient Large-Scale Language Model Training on GPU Clusters", note: "The canonical data × tensor × pipeline composition.", grade: "A", url: "https://arxiv.org/abs/2104.04473", featured: true }
+              - { year: 2023, title: "DeepSpeed-Ulysses", note: "Context sharding through all-to-all head exchange.", grade: "A-", url: "https://arxiv.org/abs/2309.14509" }
+              - { year: 2023, title: "Ring Attention", note: "Circulates KV blocks while overlapping communication with attention.", grade: "A-", url: "https://arxiv.org/abs/2310.01889" }
+
+      - name: "Fitting the model in memory: sharding, checkpointing, and offload"
+        sections:
+          - heading: "Keep a memory ledger"
+            notes:
+              - text: "A conventional mixed-precision Adam implementation is roughly 16 bytes per parameter—weights, gradients, FP32 master weights, and two moments—before activations and temporary buffers. The exact number is implementation-dependent, and at long context activations can dominate."
+              - text: "The capacity levers spend different currencies:"
+                display: "shard state → communication; checkpoint activations → recomputation; offload → interconnect or storage traffic"
+              - text: "ZeRO successively shards optimizer state, gradients, and parameters. FSDP or ZeRO-3 all-gathers a layer for computation and reshares it afterward, so transient peaks, prefetch timing, and collective overlap matter as much as resident memory."
+              - text: "Activation checkpointing is not durable job checkpointing: it discards forward intermediates and recreates them in backward. CPU and NVMe offload similarly expand capacity, not bandwidth; a model can fit and still train unusably slowly."
+            papers:
+              - { year: 2016, title: "Training Deep Nets with Sublinear Memory Cost", note: "The activation-rematerialization foundation.", grade: "A", url: "https://arxiv.org/abs/1604.06174" }
+              - { year: 2020, title: "ZeRO", note: "The model-state ledger and staged sharding that reorganized distributed training.", grade: "A", url: "https://arxiv.org/abs/1910.02054", featured: true, tags: ["★"] }
+              - { year: 2021, title: "ZeRO-Offload", note: "A disciplined CPU/GPU placement argument rather than simply moving tensors to RAM.", grade: "A-", url: "https://www.usenix.org/conference/atc21/presentation/ren-jie" }
+              - { year: 2023, title: "PyTorch FSDP", note: "An industry account of ZeRO-3-style parameter sharding.", grade: "A-", url: "https://arxiv.org/abs/2304.11277" }
+              - { year: 2025, title: "Current and New Activation Checkpointing Techniques in PyTorch", note: "A clear guide to selective checkpointing and memory-budget APIs.", grade: "A-", url: "https://pytorch.org/blog/activation-checkpointing-techniques/" }
+
+      - name: "The serving loop: continuous batching, paged and prefix KV caches"
+        sections:
+          - heading: "The scheduler is part of the model system"
+            notes:
+              - text: "Autoregressive requests are ragged loops, not ordinary batches. Orca’s decisive move was to reschedule after every token: finished requests leave and arrivals join the next iteration. The scheduler converts irregular traffic into dense GPU work."
+              - text: "Paging and prefix caching solve different problems. PagedAttention allocates KV in fixed physical blocks so sequences grow without contiguous reservation; it reduces fragmentation but neither compresses KV nor avoids prefill. Prefix caching lets an identical causal prefix reuse computed blocks."
+              - text: "Radix trees and hashed blocks move the hard problem into routing, admission, and eviction. A cache hit on the wrong worker can lose to a local miss after transfer and queueing, and semantic similarity is not an exact KV cache key."
+              - text: "Optimize goodput: requests satisfying both time-to-first-token and inter-token-latency objectives. Unconstrained tokens per second can rise while user-visible latency gets worse."
+            papers:
+              - { year: 2022, title: "Orca", note: "Iteration-level scheduling, the foundation beneath continuous batching.", grade: "A", url: "https://www.usenix.org/conference/osdi22/presentation/yu", featured: true, tags: ["★"] }
+              - { year: 2023, title: "vLLM: Easy, Fast, and Cheap LLM Serving with PagedAttention", note: "Virtual-memory ideas applied cleanly to KV allocation.", grade: "A", url: "https://arxiv.org/abs/2309.06180", featured: true }
+              - { year: 2024, title: "SGLang", note: "RadixAttention makes structured cross-call prefix reuse a runtime primitive.", grade: "A-", url: "https://arxiv.org/abs/2312.07104" }
+              - { year: 2024, title: "Hydragen", note: "Shared prefixes can turn repeated matrix–vector work into a batched matrix multiply.", grade: "A-", url: "https://arxiv.org/abs/2402.05099" }
+              - { year: 2025, title: "KVCache Cache in the Wild", note: "Production-trace evidence that corrects synthetic cache assumptions.", grade: "A-", url: "https://www.usenix.org/conference/atc25/presentation/wang-jiahao" }
+
+      - name: "Latency: speculative decoding, chunked prefill, prefill–decode disaggregation"
+        sections:
+          - heading: "Latency is three numbers"
+            notes:
+              - text: "Prefill determines time to first token, decode determines time per output token, and queueing contaminates both. Speculation, chunking, and disaggregation attack different terms; calling all of them latency optimizations hides the trade."
+              - text: "Speculative decoding lets a cheap draft propose several tokens and the target verify them in parallel. Exact rejection sampling preserves the target distribution, but speed depends on acceptance, draft cost, and unused target capacity. It can lose at high concurrency when the target is already compute-saturated."
+              - text: "Chunked prefill splits a long prompt into bounded pieces that share iterations with active decodes. Smaller chunks improve fairness and protect inter-token latency, but add launches and may delay that prompt’s first token."
+              - text: "Disaggregation gives compute-heavy prefill and bandwidth-heavy decode separate workers and scaling policies. It also adds KV transfer and rate matching; recent studies find benefits for large models and prefill-heavy traffic, not a universal default."
+            papers:
+              - { year: 2023, title: "Fast Inference from Transformers via Speculative Decoding", note: "The exact sampling construction and conceptual starting point.", grade: "A", url: "https://arxiv.org/abs/2211.17192" }
+              - { year: 2024, title: "Sarathi-Serve", note: "Chunked prefill and stall-free scheduling around latency SLOs.", grade: "A", url: "https://www.usenix.org/conference/osdi24/presentation/agrawal", featured: true }
+              - { year: 2024, title: "DistServe", note: "Establishes prefill/decode disaggregation around TTFT and TPOT goodput.", grade: "A", url: "https://www.usenix.org/conference/osdi24/presentation/zhong-yinmin", featured: true, tags: ["★"] }
+              - { year: 2025, title: "EAGLE-3", note: "A modern learned drafting method using multi-layer features.", grade: "A-", url: "https://arxiv.org/abs/2503.01840" }
+              - { year: 2025, title: "Beyond the Buzz: A Pragmatic Take on Inference Disaggregation", note: "A valuable negative result: disaggregation wins only in the right rate and topology regime.", grade: "A", url: "https://research.nvidia.com/publication/2025-06_beyond-buzz-pragmatic-take-inference-disaggregation", featured: true }
+
+      - name: "Compression: quantization, pruning, and distillation for deployment"
+        sections:
+          - heading: "A smaller checkpoint is not yet a faster system"
+            notes:
+              - text: "Name the bytes being compressed. Weight-only INT4 mainly helps capacity and low-batch bandwidth-bound decode; W8A8 targets compute-heavy serving; KV quantization matters as context and concurrency grow. “Four-bit model” is underspecified."
+              - text: "A format becomes a speedup only when a kernel executes it efficiently. Dequantization, scale metadata, packing, and unsupported sparse layouts can make a smaller checkpoint slower. QServe is useful because it co-designs W4A8KV4 with execution."
+              - text: "Pruning has the widest gap between paper sparsity and wall-clock speed. Unstructured sparsity is often only an accuracy result; structured 2:4 or block sparsity is more executable but constrains which weights may disappear."
+              - text: "Distillation changes the function rather than its encoding. It costs a training run, but a truly smaller model reduces arithmetic, weight traffic, KV size, and operational complexity on every request."
+            papers:
+              - { year: 2023, title: "GPTQ", note: "The second-order, one-shot weight-quantization baseline.", grade: "A-", url: "https://arxiv.org/abs/2210.17323" }
+              - { year: 2023, title: "SmoothQuant", note: "Moves activation outliers into weights to unlock practical W8A8.", grade: "A", url: "https://arxiv.org/abs/2211.10438", featured: true, tags: ["★"] }
+              - { year: 2024, title: "AWQ", note: "Weight-only quantization built around activation-salient channels.", grade: "A", url: "https://proceedings.mlsys.org/paper_files/paper/2024/hash/42a452cbafa9dd64e9ba4aa95cc1ef21-Abstract-Conference.html", featured: true }
+              - { year: 2023, title: "SparseGPT", note: "Strong one-shot pruning; sparsity is not proportional latency.", grade: "B+", url: "https://proceedings.mlr.press/v202/frantar23a.html" }
+              - { year: 2024, title: "QServe", note: "Bit width, dequantization, KV format, and kernels designed together.", grade: "A-", url: "https://arxiv.org/abs/2405.04532" }
+              - { year: 2025, title: "ParetoQ", note: "A unified 1–4-bit QAT study, with hardware support still decisive.", grade: "A-", url: "https://arxiv.org/abs/2502.02631" }
+
+      - name: "Mixture-of-experts systems: expert parallelism, routing, and all-to-all"
+        sections:
+          - heading: "Sparse arithmetic, dense systems problems"
+            notes:
+              - text: "MoE makes arithmetic sparse, not the system. Every layer stores a large expert bank, routes tokens, permutes activations, runs grouped ragged GEMMs, and reverses the permutation:"
+                display: "route → dispatch all-to-all → grouped expert GEMM → combine all-to-all"
+              - text: "The bargain is fewer active weights for more irregularity. Tiny expert batches underfill tensor cores, skew creates stragglers, and all-to-all stresses the fabric. MegaBlocks replaces padding or token dropping with block-sparse expert work."
+              - text: "Load balance is both systems policy and learning intervention. Auxiliary losses can distort specialization; routing biases, redundant hot experts, and topology-aware placement attack imbalance without assuming traffic is stationary."
+              - text: "Never infer runtime from active parameter count alone. Tokens per expert, router skew, grouped-GEMM shape, duplicated experts, overlap, and topology determine delivered latency."
+            papers:
+              - { year: 2022, title: "Switch Transformers", note: "The modern sparse-routing model and its capacity-factor trade-off.", grade: "A-", url: "https://jmlr.org/papers/v23/21-0998.html" }
+              - { year: 2023, title: "MegaBlocks", note: "Why padding and token dropping are systems artifacts, not necessities.", grade: "A", url: "https://proceedings.mlsys.org/paper_files/paper/2023/hash/5a54f79333768effe7e8927bcccffe40-Abstract-mlsys2023.html", featured: true, tags: ["★"] }
+              - { year: 2023, title: "Tutel", note: "Adaptive parallelism and pipelining for dynamic expert load.", grade: "B+", url: "https://proceedings.mlsys.org/paper_files/paper/2023/hash/5616d34cf8ff73942cfd5aa922842556-Abstract-mlsys2023.html" }
+              - { year: 2024, title: "DeepSeek-V3 Technical Report", note: "Routing bias, node-limited routing, FP8, and compute–communication overlap.", grade: "A", url: "https://arxiv.org/abs/2412.19437", featured: true }
+              - { year: 2025, title: "DeepEP", note: "Primary implementation of throughput- and latency-oriented expert dispatch.", grade: "A-", url: "https://github.com/deepseek-ai/DeepEP" }
+              - { year: 2025, title: "MegaScale-MoE", note: "A production-scale account of communication-efficient MoE training.", grade: "A-", url: "https://arxiv.org/abs/2505.11432" }
+
+      - name: "Long-context serving: KV offload, cache compression, and reuse across requests"
+        sections:
+          - heading: "The KV cache becomes a data plane"
+            notes:
+              - text: "For dense attention, KV storage and decode traffic grow linearly with context. GQA and MLA reduce the coefficient, not the state-management problem:"
+                display: "KV bytes = 2 × layers × tokens × KV heads × head dimension × bytes/value × batch"
+              - text: "Four levers are different: allocate blocks better, retain fewer positions, store fewer bits, or move and reuse state. Once KV survives a request or crosses workers, routing, admission, eviction, prefetch, serialization, and access control become first-class."
+              - text: "Offload wins only if fetching is cheaper than recomputation and I/O is hidden. Strata shows why a naïve GPU–CPU–SSD ladder fails: fragmented transfers, loading stalls, and concurrent requests waiting for the same missing prefix can erase the hit."
+              - text: "Exact reuse applies to identical causal prefixes. Retrieved chunks cannot simply be spliced because KV depends on preceding tokens and positions. Modular reuse requires an explicit recomputation or approximation story."
+              - text: "Evaluate cache compression with workload quality, realized bytes, first-token latency, and output-token latency together. Needle retrieval and perplexity alone are easy places to hide a bad trade."
+            papers:
+              - { year: 2023, title: "H₂O: Heavy-Hitter Oracle for Efficient Generative Inference", note: "The influential recent-tokens-plus-heavy-hitters eviction policy.", grade: "A-", url: "https://arxiv.org/abs/2306.14048" }
+              - { year: 2024, title: "KIVI", note: "Keys quantize naturally per channel while values favor per-token quantization.", grade: "A-", url: "https://arxiv.org/abs/2402.02750" }
+              - { year: 2024, title: "CacheGen", note: "Treats KV as a compressed network stream rather than only GPU memory.", grade: "A-", url: "https://arxiv.org/abs/2310.07240" }
+              - { year: 2024, title: "Mooncake", note: "Kimi’s production architecture makes disaggregated KV storage central to scheduling.", grade: "A", url: "https://arxiv.org/abs/2407.00079", featured: true, tags: ["★"] }
+              - { year: 2025, title: "LMCache", note: "An open KV layer spanning requests, engines, GPU, CPU, storage, and network.", grade: "A-", url: "https://arxiv.org/abs/2510.09665" }
+              - { year: 2026, title: "Strata", note: "The strongest current hierarchical-cache study and a production SGLang result.", grade: "A", url: "https://www.usenix.org/conference/osdi26/presentation/xie-zhiqiang", featured: true }
 
   - name: "LLM reasoning"
-    papers: []
+    intro: >
+      Reasoning is not one capability. It is a family of ways to spend computation:
+      write intermediate state into tokens, sample alternative trajectories, search
+      prefixes, call an exact tool, or recur in latent space. The readings below follow
+      that computation from the first scratchpad to the question that matters at the end:
+      did the trace cause the answer, or did it merely explain the answer afterward?
+    subtopics:
+      - name: "Chain of thought — language as a scratchpad"
+        sections:
+          - heading: "What the extra tokens buy"
+            notes:
+              - text: "A direct answer asks a fixed-depth transformer to compress the whole computation into the hidden state that predicts its first answer token. Chain of thought feeds each intermediate result back through the model, adding both serial depth and an external working memory:"
+                display: "p(z, y | x) = ∏ₜ p(zₜ | x, z<ₜ) · p(y | x, z)"
+              - text: "This is the cleanest mental model for CoT: the model is allowed to leave state for its next forward pass. Scratchpads help long arithmetic and program execution for exactly this reason; no claim about an inner symbolic reasoner is required."
+              - text: "CoT does not inject missing knowledge. It helps when the model knows the local moves but fails to compose them; it cannot rescue a false premise, an unseen algorithm, or an upstream perception error."
+              - text: "The surprising empirical result is that valid demonstrations are not always essential. Incorrect rationales retain much of the gain when they preserve relevance and ordering, suggesting that format and decomposition often matter more than imitation of a proof."
+            papers:
+              - { year: 2021, title: "Show Your Work: Scratchpads for Intermediate Computation with Language Models", note: "The pre-CoT demonstration that emitted state gives transformers effective serial computation.", grade: "A-", url: "https://arxiv.org/abs/2112.00114" }
+              - { year: 2022, title: "Chain-of-Thought Prompting Elicits Reasoning in Large Language Models", note: "The foundational elicitation result.", grade: "A", url: "https://arxiv.org/abs/2201.11903", featured: true, tags: ["★"] }
+              - { year: 2022, title: "Large Language Models are Zero-Shot Reasoners", note: "The minimal “think step by step” intervention.", grade: "B+", url: "https://arxiv.org/abs/2205.11916" }
+              - { year: 2022, title: "Towards Understanding Chain-of-Thought Prompting: What Matters", note: "Incorrect demonstrations reveal what the prompt is actually supplying.", grade: "A-", url: "https://arxiv.org/abs/2212.10001", featured: true }
+
+          - heading: "Decompose first; diversify second"
+            notes:
+              - text: "Decomposition is the robust part of the recipe. Least-to-most solves simpler subproblems before the original one; question decomposition isolates subanswers in separate contexts, making it harder for a final answer to bypass the advertised reasoning."
+              - text: "Self-consistency treats the rationale as a latent variable rather than a canonical proof: sample multiple paths, then marginalize them by final answer."
+                display: "ŷ = argmaxᵧ Σᵢ 1[answer(zᵢ) = y]"
+              - text: "Voting works when independent paths converge on a unique answer. It is much weaker for open-ended tasks and shared systematic errors: ten copies of the same misconception are still a consensus."
+              - text: "A practical progression is one trace → explicit subproblems → diverse traces → external selection. Each step adds machinery because the previous one cannot itself establish that a plausible path is correct."
+            papers:
+              - { year: 2022, title: "Least-to-Most Prompting Enables Complex Reasoning", note: "Solve primitives before asking for their composition.", grade: "A-", url: "https://arxiv.org/abs/2205.10625" }
+              - { year: 2022, title: "Self-Consistency Improves Chain of Thought Reasoning", note: "Marginalize paths instead of trusting greedy decoding.", grade: "A", url: "https://arxiv.org/abs/2203.11171", featured: true }
+              - { year: 2023, title: "Plan-and-Solve Prompting", note: "Separates construction of a plan from its execution.", grade: "B+", url: "https://arxiv.org/abs/2305.04091" }
+              - { year: 2023, title: "Question Decomposition Improves the Faithfulness of Model-Generated Reasoning", note: "Decomposition can increase causal dependence on the stated steps.", grade: "A-", url: "https://arxiv.org/abs/2307.11768" }
+
+      - name: "Test-time compute — sample, search, and verify"
+        sections:
+          - heading: "Three different ways to spend a budget"
+            notes:
+              - text: "“More test-time compute” hides three algorithms: extend one trajectory, sample more completed leaves, or search over unfinished prefixes. They have different failure modes and should not be compared as one scalar token budget."
+                display: "sequential depth  |  N completed leaves  |  prefix-tree search"
+              - text: "Repeated sampling increases coverage approximately as 1 − (1 − p)ᴺ under an independence assumption. Large Language Monkeys shows that coverage keeps rising long after practical selectors stop converting it into delivered accuracy."
+              - text: "Allocation should depend on difficulty. Snell et al. report more than a 4× efficiency gain from adaptive allocation and regimes where a smaller model with inference compute beats a 14× larger model. The condition matters: the small model must already have a nontrivial chance of finding a solution."
+              - text: "Longer is not monotonically better. Budget forcing can prompt reconsideration, but overthinking can also abandon a correct answer. The missing mechanism is a learned stopping rule, not an indefinitely larger token limit."
+            image: "/assets/img/reading_list/reasoning_compute.svg"
+            image_width: 860
+            image_alt: "Three test-time compute strategies: one long path, many complete samples with a selector, and prefix-tree search with a verifier."
+            image_caption: "A token budget becomes useful reasoning compute only when it buys depth, diversity, or a better verified decision."
+            papers:
+              - { year: 2024, title: "Scaling LLM Test-Time Compute Optimally can be More Effective than Scaling Model Parameters", note: "Difficulty-aware allocation is the central result.", grade: "A", url: "https://arxiv.org/abs/2408.03314", featured: true, tags: ["★"] }
+              - { year: 2024, title: "Large Language Monkeys", note: "Solution coverage scales much farther than selection accuracy.", grade: "A-", url: "https://arxiv.org/abs/2407.21787" }
+              - { year: 2024, title: "Learning to Reason with LLMs", note: "Primary evidence that performance scales with train- and test-time compute; methodological detail is limited.", grade: "B+", url: "https://openai.com/index/learning-to-reason-with-llms/" }
+              - { year: 2025, title: "s1: Simple Test-Time Scaling", note: "Budget forcing as a deliberately minimal replication.", grade: "B+", url: "https://arxiv.org/abs/2501.19393" }
+              - { year: 2026, title: "When More Thinking Hurts", note: "Recent evidence for diminishing and sometimes negative marginal returns.", grade: "B", url: "https://arxiv.org/abs/2604.10739" }
+
+          - heading: "The selector is the bottleneck"
+            notes:
+              - text: "Pass@N asks whether any candidate is correct. A deployed system must identify that candidate without seeing the answer. The gap is the verifier problem:"
+                display: "delivered accuracy ≈ coverage(N) × selector recall"
+              - text: "An outcome verifier ranks completed solutions. A process verifier scores prefixes, allowing search to prune an error before paying for the rest of its trajectory. Process supervision and tree search therefore belong in the same story."
+              - text: "Tree of Thoughts shows the upside when intermediate states are easy to score. Its Game-of-24 result should not be generalized blindly: on open-ended tasks, self-evaluation may be less reliable than generation."
+              - text: "Under fixed budgets, generating more candidates can beat spending heavily on generative verification. Search earns its cost only when the verifier is genuinely better at judging a partial state than the policy is at continuing it."
+            papers:
+              - { year: 2021, title: "Training Verifiers to Solve Math Word Problems", note: "Generate many, then rank; also introduced GSM8K.", grade: "A-", url: "https://arxiv.org/abs/2110.14168" }
+              - { year: 2023, title: "Let’s Verify Step by Step", note: "Process supervision and PRM800K.", grade: "A", url: "https://arxiv.org/abs/2305.20050", featured: true, tags: ["★"] }
+              - { year: 2023, title: "Tree of Thoughts", note: "Prefix-level branching, evaluation, and backtracking.", grade: "A-", url: "https://arxiv.org/abs/2305.10601" }
+              - { year: 2025, title: "When To Solve, When To Verify", note: "The fixed-budget trade between candidate generation and verification.", grade: "B+", url: "https://arxiv.org/abs/2504.01005" }
+              - { year: 2025, title: "rStar-Math", note: "MCTS, a process preference model, and iterative self-evolution in one system.", grade: "A-", url: "https://arxiv.org/abs/2501.04519" }
+
+      - name: "Executable reasoning — code, tools, and environments"
+        sections:
+          - heading: "Put the brittle step in a runtime"
+            notes:
+              - text: "Language models are often better at translating a problem into operations than at executing those operations exactly. PAL and Program of Thoughts exploit the asymmetry: let the model write the computation and let an interpreter perform it."
+                display: "problem → executable plan → runtime trace → checked result"
+              - text: "Execution changes the status of a rationale. The answer is causally downstream of a visible program, so arithmetic and state transitions can be replayed. That is a stronger guarantee than fluent prose."
+              - text: "It is not a proof of semantic correctness. A perfectly executed program can encode the wrong equation, query the wrong field, or call the right tool on the wrong object."
+              - text: "ReAct generalizes one program into an interactive loop. Fresh observations break a self-contained hallucination cycle, but introduce planning, tool-selection, argument-generation, and recovery failures."
+            papers:
+              - { year: 2022, title: "PAL: Program-Aided Language Models", note: "Natural-language decomposition with exact execution.", grade: "A", url: "https://arxiv.org/abs/2211.10435", featured: true, tags: ["★"] }
+              - { year: 2022, title: "Program of Thoughts Prompting", note: "Explicitly separates reasoning from computation.", grade: "A-", url: "https://arxiv.org/abs/2211.12588" }
+              - { year: 2023, title: "Faithful Chain-of-Thought Reasoning", note: "Symbolic translation followed by a deterministic solver.", grade: "A-", url: "https://arxiv.org/abs/2301.13379" }
+              - { year: 2022, title: "ReAct", note: "Interleaves reasoning, action, and fresh evidence.", grade: "A", url: "https://arxiv.org/abs/2210.03629", featured: true }
+              - { year: 2023, title: "Toolformer", note: "Self-supervised learning of when and how to invoke APIs.", grade: "B+", url: "https://arxiv.org/abs/2302.04761" }
+
+      - name: "Learning the trace — bootstrapping and distillation"
+        sections:
+          - heading: "From demonstrations to self-improvement loops"
+            notes:
+              - text: "Final-answer supervision says where a trajectory ended. Rationale supervision exposes a dense token-level path, but also copies every stylistic habit and hidden error of its teacher."
+              - text: "STaR provides the basic loop: sample rationales, keep those that reach a correct answer, fine-tune, and repeat. Its weakness is equally important—outcome filtering can retain a logically broken trace that arrived at the answer by accident."
+                display: "sample → verify outcome or process → retain or score → train → repeat"
+              - text: "ReST-MCTS and rStar-Math use process-guided search to improve traces before distillation. The verifier supplies denser information, but the loop can now amplify verifier blind spots instead of policy blind spots."
+              - text: "The modern recipe composes stages: cold-start traces teach a readable protocol; search or RL discovers trajectories; distillation moves them back into the policy. The adjacent RL chapter carries the GRPO and RLVR half of this story."
+            papers:
+              - { year: 2022, title: "STaR: Bootstrapping Reasoning With Reasoning", note: "The canonical self-generated-rationale loop.", grade: "A", url: "https://arxiv.org/abs/2203.14465", featured: true, tags: ["★"] }
+              - { year: 2023, title: "Distilling Step-by-Step", note: "Rationales as data-efficient supervision for smaller models.", grade: "A-", url: "https://arxiv.org/abs/2305.02301" }
+              - { year: 2024, title: "Quiet-STaR", note: "Extends self-taught rationales from QA to arbitrary next-token prediction.", grade: "A-", url: "https://arxiv.org/abs/2403.09629" }
+              - { year: 2024, title: "ReST-MCTS*: Self-Training via Process Reward Guided Tree Search", note: "Search produces both traces and per-step value targets.", grade: "A-", url: "https://arxiv.org/abs/2406.03816" }
+              - { year: 2025, title: "rStar-Math", note: "The full search–verifier–distillation flywheel.", grade: "A-", url: "https://arxiv.org/abs/2501.04519" }
+
+      - name: "Latent reasoning — thought need not be English"
+        sections:
+          - heading: "Language is an interface, not necessarily the substrate"
+            notes:
+              - text: "Verbal CoT asks one representation to carry computation, communicate with the user, and remain easy to score. English is discrete, redundant, and autoregressively expensive; there is no theorem that it is the best internal state."
+              - text: "Pause tokens isolate the compute hypothesis by adding serial states without meaningful words. They help only when the model is trained to use them, which argues against treating arbitrary filler as free reasoning."
+              - text: "Coconut feeds a hidden state back as the next input embedding; recurrent-depth models repeat a transformer block. Both spend computation without serializing every intermediate through the vocabulary:"
+                display: "verbal: h → token → embedding → h′     latent: h → h′"
+              - text: "The evidence remains proof-of-concept. A plausible hybrid uses latent computation for routine spans and explicit checkpoints at uncertainty or tool boundaries, preserving some auditability without verbalizing every transition."
+            papers:
+              - { year: 2023, title: "Think Before You Speak: Training Language Models With Pause Tokens", note: "Extra serial compute without semantic scratchpad text.", grade: "A-", url: "https://arxiv.org/abs/2310.02226" }
+              - { year: 2024, title: "Training LLMs to Reason in a Continuous Latent Space (Coconut)", note: "Hidden states recursively become continuous thoughts.", grade: "A", url: "https://arxiv.org/abs/2412.06769", featured: true, tags: ["★"] }
+              - { year: 2025, title: "Scaling Test-Time Compute with Latent Reasoning: A Recurrent Depth Approach", note: "Scale inference compute by depth rather than output length.", grade: "A-", url: "https://arxiv.org/abs/2502.05171" }
+              - { year: 2025, title: "CODI", note: "Self-distills explicit chain of thought into continuous space.", grade: "B+", url: "https://arxiv.org/abs/2502.21074" }
+              - { year: 2026, title: "Selective Latent Thinking", note: "A recent hybrid preserving precision-critical explicit spans; promising, not settled.", grade: "B", url: "https://arxiv.org/abs/2605.25745" }
+
+      - name: "Faithfulness and evaluation"
+        sections:
+          - heading: "A useful scratchpad is not necessarily an honest explanation"
+            notes:
+              - text: "Two claims are routinely collapsed: the trace improves the answer, and the trace reports why the model chose it. The first is well established. The second fails whenever decision-critical information flows directly from prompt to answer while the trace supplies a plausible story afterward."
+                display: "faithful: x → z → y          shortcut: x ─────────→ y"
+              - text: "Hint experiments make the failure causal. Models change answers after biased hints yet frequently omit the hints from their stated reasoning. Longer and more polished traces do not solve this."
+              - text: "Faithfulness should be tested with interventions: corrupt, truncate, paraphrase, or mask the trace and observe the answer. Necessity, sufficiency, and completeness are stronger evidence than whether a human finds prose convincing."
+              - text: "CoT remains useful as an alarm surface, not a proof of safety. Recent monitorability studies find real signal and persistent blind spots; extrapolations to future systems should remain explicitly uncertain."
+            papers:
+              - { year: 2023, title: "Language Models Don’t Always Say What They Think", note: "Biasing features produce unacknowledged rationalizations.", grade: "A", url: "https://arxiv.org/abs/2305.04388", featured: true, tags: ["★"] }
+              - { year: 2023, title: "Measuring Faithfulness in Chain-of-Thought Reasoning", note: "Intervention-based faithfulness across tasks and scales.", grade: "A", url: "https://arxiv.org/abs/2307.13702", featured: true }
+              - { year: 2025, title: "Reasoning Models Don’t Always Say What They Think", note: "Modern reasoning models still rarely disclose decision-changing hints.", grade: "A-", url: "https://arxiv.org/abs/2505.05410" }
+              - { year: 2025, title: "Evaluating Chain-of-Thought Monitorability", note: "Monitorability across test-time compute, RL, and pretraining scale.", grade: "A-", url: "https://openai.com/index/evaluating-chain-of-thought-monitorability/" }
+              - { year: 2026, title: "Faithfulness as Information Flow", note: "Structural metrics and interventions that route information through the trace.", grade: "B+", url: "https://arxiv.org/abs/2605.24286" }
+
+          - heading: "Test generalization, not benchmark familiarity"
+            notes:
+              - text: "A benchmark score measures an inference system: weights, prompt, sampler, token budget, tools, verifier, and stopping rule. Reporting “model accuracy” without that protocol is increasingly meaningless."
+              - text: "Static tests confound reasoning with memorized questions and familiar procedures. Counterfactual rules and GSM-Symbolic preserve the operation while changing values, phrasing, or irrelevant clauses; the resulting drops show that reasoning and recitation coexist."
+              - text: "Live evaluation reduces contamination, while ARC-like tasks test adaptation to rules demonstrated only inside the problem. Neither is sufficient alone: fresh expert questions can still reward knowledge, and abstract puzzles underrepresent real work."
+              - text: "A useful report includes pass@1, coverage or pass@k, selector accuracy, tokens or FLOPs, robustness under meaning-preserving transformations, and calibration. Exact-match accuracy is the first coordinate, not the conclusion."
+            papers:
+              - { year: 2023, title: "Reasoning or Reciting?", note: "Counterfactual task rules separate transferable procedures from learned defaults.", grade: "A-", url: "https://arxiv.org/abs/2307.02477" }
+              - { year: 2024, title: "GSM-Symbolic", note: "Controlled variants reveal numerical and irrelevant-clause fragility.", grade: "A-", url: "https://arxiv.org/abs/2410.05229" }
+              - { year: 2024, title: "LiveBench", note: "Frequently refreshed, objective, contamination-resistant evaluation.", grade: "A-", url: "https://arxiv.org/abs/2406.19314" }
+              - { year: 2025, title: "MathArena", note: "Evaluates competitions immediately and includes proof writing.", grade: "A", url: "https://arxiv.org/abs/2505.23281", featured: true }
+              - { year: 2026, title: "ARC Prize 2025 Technical Report", note: "Few-shot abstraction, refinement loops, and the limits of knowledge coverage.", grade: "A-", url: "https://arxiv.org/abs/2601.10904" }
 
   - name: "Reinforcement learning"
     subtopics:
@@ -692,9 +989,83 @@ categories:
               - { title: "GeoSense: Internalizing Geometric Necessity Perception for Multimodal Reasoning", note: "Adds a geometry input channel, but injects it only when 2D cues are judged insufficient — a direct answer to the always-on cost of the approach above.", grade: "B+", url: "https://arxiv.org/abs/2603.10370" }
               - { title: "Thinking with Geometry: Active Geometry Integration for Spatial Reasoning", note: "Argues fusing geometry as a global, indiscriminate stream causes semantic-geometry misalignment; GeoThinker instead lets the model query geometric evidence on demand.", grade: "B+", url: "https://arxiv.org/abs/2602.06037" }
 
-      - { name: "Chain-of-thought reasoning for spatial tasks", papers: [] }
-      - { name: "Spatial-aware RL", papers: [] }
-      - { name: "Promising research directions", papers: [] }
+      - name: "Chain-of-thought reasoning for spatial tasks"
+        sections:
+          - heading: "Why words are the wrong default scratchpad"
+            notes:
+              - text: "Textual chain of thought helps when the intermediate state is naturally linguistic. Spatial questions depend on object identity, pose, metric distance, and the coordinate frame from which “left” or “front” is defined. Serializing that state into prose can discard the geometry needed by the next step."
+              - text: "VSI-Bench provides the strongest contrary result to generic reasoning recipes: linguistic CoT, self-consistency, and Tree of Thoughts do not reliably improve performance, while explicitly generating a cognitive map helps spatial-distance reasoning."
+              - text: "A 2025 controlled study reaches the same conclusion from another direction: simple CoT can hurt spatial accuracy, while staged scene-graph reasoning helps. The useful intervention is not “say more”; it is “materialize objects and relations before composing them.”"
+                display: "frames → objects + poses + reference frame → map or scene graph → query → answer"
+              - text: "Written explanations remain useful diagnostics, but a correct sentence about a wrong coordinate frame is still a wrong computation. A trace becomes inspectable when each step points to a box, coordinate, map cell, or source view."
+            papers:
+              - { year: 2024, title: "Thinking in Space", note: "Generic linguistic reasoning fails while explicit cognitive maps help.", grade: "A", url: "https://arxiv.org/abs/2412.14171", featured: true, tags: ["★"] }
+              - { year: 2025, title: "Enhancing Spatial Reasoning in VLMs via CoT Prompting and Reinforcement Learning", note: "Simple CoT hurts; scene-graph CoT improves accuracy.", grade: "A-", url: "https://arxiv.org/abs/2507.13362", featured: true }
+              - { year: 2024, title: "Visual Sketchpad", note: "Boxes, lines, crops, and specialist tools become visual working memory.", grade: "A", url: "https://arxiv.org/abs/2406.09403" }
+              - { year: 2025, title: "EmbodiedVSR", note: "Dynamic scene-graph-guided reasoning for embodied tasks.", grade: "B+", url: "https://arxiv.org/abs/2503.11089" }
+              - { year: 2024, title: "SpatialVLM", note: "An LLM coordinator composes grounded metric subqueries.", grade: "A-", url: "https://arxiv.org/abs/2401.12168" }
+
+          - heading: "Ground every step in inspectable state"
+            notes:
+              - text: "SpatialVLM’s isosceles-triangle example captures the right decomposition: query three grounded distances, then execute an exact comparison. Its limitation is that the 3D state is borrowed from a specialist model rather than maintained by the VLM."
+              - text: "SpatialCoT first aligns language, images, and coordinates bidirectionally, then teaches grounded reasoning for navigation and manipulation. The ordering matters: reasoning over an unaligned coordinate interface produces more fluent coordinate errors."
+              - text: "Map2Thought goes further by placing deterministic vector, box-distance, and occlusion operations over a metric cognitive map. The explanation earns trust because the operations can be replayed."
+              - text: "The architectural bet I find most credible is hybrid: language chooses the geometric operation, an explicit spatial state executes it, and language summarizes afterward. This is a synthesis of the readings, not a result established by any single paper."
+            papers:
+              - { year: 2025, title: "SpatialCoT", note: "Coordinate alignment before grounded chain of thought.", grade: "A-", url: "https://arxiv.org/abs/2501.10074", featured: true }
+              - { year: 2026, title: "Map2Thought", note: "Deterministic reasoning over a metric cognitive map.", grade: "A-", url: "https://arxiv.org/abs/2601.11442", featured: true }
+              - { year: 2024, title: "Visual Sketchpad", note: "Visual operations function as a replayable scratchpad.", grade: "A", url: "https://arxiv.org/abs/2406.09403" }
+              - { year: 2025, title: "EmbodiedVSR", note: "Scene graphs are updated as the environment changes.", grade: "B+", url: "https://arxiv.org/abs/2503.11089" }
+              - { year: 2025, title: "Chain-of-Visual-Thought", note: "Compact continuous tokens carry depth, layout, edges, and appearance.", grade: "B+", url: "https://arxiv.org/abs/2511.19418" }
+
+      - name: "Spatial-aware RL"
+        sections:
+          - heading: "Reward geometry, not eloquent prose"
+            notes:
+              - text: "Final-answer reward is sparse and shortcut-prone. Geometry supplies denser checks almost for free: a mirror should exchange left and right, a rigid viewpoint change should preserve metric distance, and two views of one scene should induce a consistent map."
+                display: "R = R_answer + λᵥR_equivariance + λgR_grounding + λmR_map-consistency − λc cost"
+              - text: "The equation is a design template, not a formula from one paper. SpaceR rewards map imagination; SVQA-R1 builds relation-preserving view transformations into reward. A separate GRPO study reports more robustness than SFT under wording changes, suggesting outcome optimization can resist surface imitation."
+              - text: "Answer-only RL can still reinforce a fluent trace built on faulty perception. Visual-RFT adds verifiable geometric rewards such as IoU; SR-REAL rewards 3D localization along its detect-then-reason path. The reward should touch the visual state where the error enters."
+              - text: "The stronger test is closed-loop action. SA-VLA reports that ordinary RL adaptation can erode spatial inductive bias and uses geometric progress and spatially conditioned exploration to preserve it. A policy that reaches around an obstacle has demonstrated more than a VQA model that names “left.”"
+              - text: "The caveat is scope. Most results use synthetic relations, benchmark QA, or short control horizons. Better reward on those tasks does not yet establish a persistent world model or robust transfer to open environments."
+            papers:
+              - { year: 2025, title: "SpaceR: Reinforcing MLLMs in Video Spatial Reasoning", note: "Map-imagination RL with verifiable rewards over long video.", grade: "A-", url: "https://arxiv.org/abs/2504.01805", featured: true, tags: ["★"] }
+              - { year: 2025, title: "SVQA-R1", note: "Mirror and view consistency become spatial rewards.", grade: "A-", url: "https://arxiv.org/abs/2506.01371", featured: true }
+              - { year: 2025, title: "Enhancing Spatial Reasoning in VLMs via CoT Prompting and RL", note: "GRPO versus SFT under spatial wording shifts.", grade: "B+", url: "https://arxiv.org/abs/2507.13362" }
+              - { year: 2025, title: "Visual-RFT", note: "Task-verifiable visual rewards, including IoU.", grade: "A-", url: "https://arxiv.org/abs/2503.01785" }
+              - { year: 2025, title: "Perception-R1", note: "Rewards explicit visual evidence rather than only the final answer.", grade: "B+", url: "https://arxiv.org/abs/2506.07218" }
+              - { year: 2026, title: "Reinforcing Dual-Path Reasoning in Spatial VLMs (SR-REAL)", note: "Joint language-only and detect-then-reason paths.", grade: "B+", url: "https://arxiv.org/abs/2606.17539" }
+              - { year: 2026, title: "SA-VLA", note: "Geometry-aware reward and exploration for manipulation RL.", grade: "B+", url: "https://arxiv.org/abs/2602.00743" }
+
+      - name: "Promising research directions"
+        sections:
+          - heading: "Build a persistent, viewpoint-invariant world state"
+            notes:
+              - text: "A long video context is not a map. Frames remain indexed by camera time, objects recur under different appearances, and old evidence competes with every later token. A spatial system needs one canonical state into which observations are fused."
+                display: "Mₜ = fuse(Mₜ₋₁, project(observationₜ, poseₜ));    answer = query(M_T, q)"
+              - text: "The likely memory is two-level: working memory for recent high-resolution evidence and episodic memory for persistent objects, places, and relations. VLM² is direct evidence for this design; Ego3D-VLM and Map2Thought show the value of global coordinates and explicit maps."
+              - text: "A real test should require loop closure, occlusion, revisiting, and counterfactual viewpoint queries. Current benchmark gains do not establish that one consistent scene survives a long trajectory."
+              - text: "My research hypothesis is that uncertainty must be stored with geometry. A map cell should carry confidence or a distribution rather than a prematurely fixed fact; otherwise one depth error becomes an authoritative hallucination for every later query."
+            papers:
+              - { year: 2024, title: "Thinking in Space", note: "Evidence for emergent local world models and the benefit of explicit maps.", grade: "A", url: "https://arxiv.org/abs/2412.14171", featured: true, tags: ["★"] }
+              - { year: 2025, title: "Vision-Language Memory for Spatial Reasoning (VLM²)", note: "Working plus episodic, view-consistent 3D-aware memory.", grade: "A-", url: "https://arxiv.org/abs/2511.20644" }
+              - { year: 2025, title: "Spatial Reasoning with VLMs in Ego-Centric Multi-View Scenes", note: "Global-coordinate cognitive maps for real multi-view scenes.", grade: "B+", url: "https://arxiv.org/abs/2509.06266" }
+              - { year: 2026, title: "Map2Thought", note: "Metric and discrete map representations in one interface.", grade: "A-", url: "https://arxiv.org/abs/2601.11442" }
+              - { year: 2026, title: "Thinking with Geometry", note: "Queries geometric evidence on demand instead of fusing it indiscriminately.", grade: "B+", url: "https://arxiv.org/abs/2602.06037" }
+
+          - heading: "Make perception active and consequences falsifiable"
+            notes:
+              - text: "Static VQA forces the model to guess from the supplied view. An embodied reasoner should choose its next observation—crop, zoom, move, or revisit—until competing spatial hypotheses separate."
+              - text: "DeepEyes shows that RL can elicit useful visual tool calls; Visual Sketchpad shows that marks and specialist tools help spatial tasks; Chain-of-Visual-Thought compresses dense evidence into a smaller latent budget. None alone demonstrates a persistent 3D model."
+              - text: "Action supplies the missing falsification signal. If a predicted relation must support navigation, reachability, or manipulation after a viewpoint change, pixel-space shortcuts stop paying."
+              - text: "My highest-confidence bet is an adaptive hybrid: explicit geometry while the scene is uncertain, compact latent state after it stabilizes, and renewed observation whenever confidence falls. This is a direction suggested by the literature, not an established recipe."
+            papers:
+              - { year: 2025, title: "DeepEyes", note: "RL elicits crop-and-inspect visual reasoning.", grade: "A-", url: "https://arxiv.org/abs/2505.14362", featured: true }
+              - { year: 2024, title: "Visual Sketchpad", note: "Visual working memory and specialist tools.", grade: "A", url: "https://arxiv.org/abs/2406.09403", featured: true, tags: ["★"] }
+              - { year: 2025, title: "Chain-of-Visual-Thought", note: "Compact continuous visual state.", grade: "B+", url: "https://arxiv.org/abs/2511.19418" }
+              - { year: 2024, title: "Visual Program Distillation", note: "Executed and verified visual programs become training traces.", grade: "A-", url: "https://arxiv.org/abs/2312.03052" }
+              - { year: 2026, title: "SA-VLA", note: "Spatial generalization measured through manipulation.", grade: "B+", url: "https://arxiv.org/abs/2602.00743" }
+              - { year: 2026, title: "SR-REAL", note: "Explicit 3D detection and language reasoning as complementary paths.", grade: "B+", url: "https://arxiv.org/abs/2606.17539" }
 
   - name: "Topic 2 · LLM interpretability"
     subtopics:
@@ -855,10 +1226,281 @@ categories:
               - { year: 2025, title: "On Linear Representations and Pretraining Data Frequency", note: "Linear structure appears once co-occurrence frequency crosses a threshold.", grade: "B+", url: "https://arxiv.org/abs/2504.12459" }
 
   - name: "Topic 3 · World models"
-    papers: []
+    intro: >
+      “World model” now labels several different objects: a video generator that renders
+      plausible scenes, a simulator that predicts how actions change state, and a planner
+      that chooses those actions. This chapter uses a stricter test. A world model should
+      represent the current situation, answer counterfactual questions about interventions,
+      and make those answers useful for control. Photorealism can help, but it is not the contract.
+    subtopics:
+      - name: "What is being modeled?"
+        sections:
+          - heading: "The control loop, not the pixels"
+            notes:
+              - text: "In a partially observed environment, pixels are observations rather than state. A useful model compresses observation history into a belief state and predicts how an action changes that state:"
+                display: "zₜ = e(o≤ₜ),      pθ(zₜ₊₁, rₜ, cₜ | zₜ, aₜ)"
+              - text: "The renderer–simulator–planner distinction is more than vocabulary. A renderer needs perceptual fidelity, a simulator needs structural and intervention fidelity, and a planner needs predictions that preserve the ranking of actions. One system may implement all three, but success at one does not establish the others."
+              - text: "A model need not reconstruct the whole world. Its representation should retain distinctions that change the optimal action and discard nuisance detail that does not. The downstream decision defines the useful boundary."
+              - text: "The definition is falsifiable: vary the action while holding context fixed, test whether consequences change correctly, and then measure whether planning with those predictions improves closed-loop behavior."
+            image: "/assets/img/reading_list/world_model_loop.svg"
+            image_width: 860
+            image_alt: "A world-model loop in which observations become a latent state, action-conditioned dynamics predict a next state, and a policy chooses actions from imagined consequences."
+            image_caption: "Prediction becomes a world model when action-conditioned counterfactuals close a useful control loop."
+            papers:
+              - { year: 2026, title: "A Functional Taxonomy of World Models", note: "A recent antidote to calling every video generator a simulator; organized by function rather than model family.", grade: "A", url: "https://www.worldlabs.ai/blog/taxonomy-of-world-models", featured: true, tags: ["★"] }
+              - { year: 2018, title: "World Models", note: "The compact seminal demonstration of an agent learning and acting inside latent rollouts.", grade: "B+", url: "https://arxiv.org/abs/1803.10122" }
+              - { year: 2023, title: "DreamerV3", note: "Representation learning, latent dynamics, and policy learning operating as one system.", grade: "A", url: "https://arxiv.org/abs/2301.04104", featured: true, tags: ["★"] }
+              - { year: 2023, title: "TD-MPC2", note: "Task-oriented latent simulation plus online replanning across a broad control suite.", grade: "A", url: "https://arxiv.org/abs/2310.16828", featured: true }
+              - { year: 2025, title: "V-JEPA 2", note: "Predictive representations learned mostly without actions become useful for planning after limited action-conditioned data.", grade: "A-", url: "https://arxiv.org/abs/2506.09985" }
+
+          - heading: "Learn a state worth predicting"
+            notes:
+              - text: "Pixel reconstruction is attractive but often misaligned with control. It spends capacity on texture, lighting, and other hard-to-predict details even when those details do not change an action. Reconstruction-free objectives try to preserve predictable, decision-relevant structure instead."
+              - text: "A JEPA predicts a future representation rather than a future frame. That can remove visual nuisance, but creates a compression–controllability trade: a feature may be excellent for recognition while merging states that require different actions."
+                display: "L_JEPA = ‖gθ(e(o≤ₜ), aₜ:ₜ₊H) − stopgrad(e_target(oₜ₊H))‖²"
+              - text: "Deterministic predictors also average mutually exclusive futures. A probabilistic latent state should preserve uncertainty where it changes decisions rather than merely rendering a blurry mean."
+              - text: "Judge a latent state by prediction and planning under interventions, not only reconstruction loss or feature similarity. The representation’s job is to keep exactly the distinctions a policy will need."
+            papers:
+              - { year: 2024, title: "MuDreamer", note: "Challenges the assumption that visual reconstruction is necessary under distracting observations.", grade: "B+", url: "https://arxiv.org/abs/2405.15083" }
+              - { year: 2024, title: "DINO-WM", note: "Predicting spatial foundation-model features as a middle ground between pixels and tiny task states.", grade: "A-", url: "https://arxiv.org/abs/2411.04983" }
+              - { year: 2025, title: "V-JEPA 2", note: "The strongest current case for representation-space future prediction as a base for physical reasoning.", grade: "A", url: "https://arxiv.org/abs/2506.09985", featured: true, tags: ["★"] }
+              - { year: 2025, title: "World-in-World", note: "Closed-loop evidence that representation and dynamics should be judged by action-conditioned task success.", grade: "A-", url: "https://arxiv.org/abs/2510.18135" }
+
+      - name: "Planning in imagination"
+        sections:
+          - heading: "Dreamer and MPC solve different halves"
+            notes:
+              - text: "Dreamer amortizes planning into a policy. It rolls the learned model forward, trains an actor and critic on imagined trajectories, and acts cheaply at deployment. This is efficient when the task distribution is stable, but the policy inherits model errors accumulated during training."
+              - text: "Model-predictive control instead optimizes a short action sequence at decision time, executes only the first action, then replans after the next observation:"
+                display: "a*ₜ:ₜ₊H = argmaxₐ E_pθ[ Σₖ₌₀ᴴ γᵏ r(zₜ₊ₖ, aₜ₊ₖ) ]"
+              - text: "The receding horizon repeatedly anchors imagination to reality and limits compounding error. It costs more inference compute but can adapt to a new goal without retraining; a learned policy moves that cost into training."
+              - text: "Planning depends more on preserving the ordering of candidate actions than on exact long-horizon pixels. A consistently biased simulator can remain useful; a beautiful simulator that reverses two candidates is actively harmful."
+            papers:
+              - { year: 2023, title: "DreamerV3", note: "The canonical example of learning behavior largely from imagined experience.", grade: "A", url: "https://arxiv.org/abs/2301.04104", featured: true, tags: ["★"] }
+              - { year: 2023, title: "TD-MPC2", note: "The complementary case for short-horizon latent planning and continual replanning.", grade: "A", url: "https://arxiv.org/abs/2310.16828", featured: true }
+              - { year: 2024, title: "DINO-WM", note: "Uses a learned representation for zero-shot planning without a learned reward model.", grade: "A-", url: "https://arxiv.org/abs/2411.04983" }
+              - { year: 2025, title: "V-JEPA 2", note: "Connects passive-video pretraining to action-conditioned model-predictive control.", grade: "A-", url: "https://arxiv.org/abs/2506.09985" }
+              - { year: 2025, title: "World-in-World", note: "Controllability and rollout compute predict success better than conventional video quality.", grade: "A", url: "https://arxiv.org/abs/2510.18135", featured: true }
+
+      - name: "Foundation world models"
+        sections:
+          - heading: "Passive video does not come with action labels"
+            notes:
+              - text: "Internet video offers scale but rarely records the action that caused each transition. A latent-action model infers a compact control variable between frames and learns future observations conditioned on it, hoping to discover reusable interaction primitives without annotation."
+              - text: "The weakness is identifiability. Camera motion, object motion, editing, and intention can explain the same change. An inferred action is therefore a useful modeling convention, not necessarily the physical control that generated a scene."
+              - text: "Genie’s progression captures the ambition: learn controllable 2D environments from unlabeled video, extend to interactive 3D generation, then improve persistence and real-time response. The missing result is reliable agent transfer, not a more compelling human demo."
+              - text: "The action symbol carries most of the scientific burden. If changing a does not reliably produce the correct counterfactual future, the system remains a conditional renderer rather than a simulator."
+                display: "pθ(oₜ₊₁:ₜ₊H | o≤ₜ, aₜ:ₜ₊H)"
+            papers:
+              - { year: 2024, title: "Genie: Generative Interactive Environments", note: "Learns latent actions and controllable transitions from action-free video.", grade: "A-", url: "https://arxiv.org/abs/2402.15391", featured: true, tags: ["★"] }
+              - { year: 2024, title: "Genie 2", note: "A striking extension to interactive 3D worlds; public evidence is stronger on generation than agent transfer.", grade: "B+", url: "https://deepmind.google/blog/genie-2-a-large-scale-foundation-world-model/" }
+              - { year: 2025, title: "Genie 3", note: "Real-time, longer-lived worlds are genuine progress, not yet proof of reliable physical simulation.", grade: "B+", url: "https://deepmind.google/blog/genie-3-a-new-frontier-for-world-models/" }
+              - { year: 2025, title: "V-JEPA 2", note: "A less rendering-centric route from passive video to action-conditioned prediction.", grade: "A", url: "https://arxiv.org/abs/2506.09985", featured: true }
+              - { year: 2026, title: "Cosmos 3", note: "An ambitious open omnimodal backbone for physical AI whose assets permit scrutiny beyond a demo reel.", grade: "A-", url: "https://arxiv.org/abs/2606.02800" }
+
+      - name: "Physical AI and synthetic experience"
+        sections:
+          - heading: "Counterfactual coverage is useful only when consequences are faithful"
+            notes:
+              - text: "Robotics and autonomous driving are natural applications because real failures are expensive and rare events are missing precisely where a policy needs experience. A generative model can vary weather, geometry, agents, and sensor streams to fill that tail."
+              - text: "Synthetic experience helps only when simulator mistakes are less consequential than missing data. A world that softens collisions, simplifies grasping, or repairs impossible states creates optimistic policy estimates."
+              - text: "Policy evaluation in a learned world is a ranking problem under distribution shift. Current work suggests rankings may remain useful in familiar regimes while absolute success estimates—and unfamiliar actions—are much less trustworthy."
+              - text: "The defensible pattern is layered: use learned worlds for exploration and regression testing, reserve real trials or trusted simulation for calibration, and actively search for cases where learned dynamics and reality disagree."
+            papers:
+              - { year: 2025, title: "Evaluating Robot Policies in a World Model", note: "Reports both useful policy ranking and characteristic optimism on unfamiliar actions.", grade: "A-", url: "https://arxiv.org/abs/2506.00613", featured: true, tags: ["★"] }
+              - { year: 2026, title: "Cosmos 3", note: "A broad physical-AI platform whose openness makes its claims more scientifically useful.", grade: "A-", url: "https://arxiv.org/abs/2606.02800" }
+              - { year: 2026, title: "The Waymo World Model", note: "Rare-scenario generation is a natural application; a company demo is not public safety validation.", grade: "B", url: "https://waymo.com/blog/2026/02/the-waymo-world-model-a-new-frontier-for-autonomous-driving-simulation/" }
+              - { year: 2026, title: "dWorldEval", note: "Action-first evaluation exposes generated videos that visually repair a policy mistake.", grade: "B+", url: "https://arxiv.org/abs/2604.22152" }
+              - { year: 2024, title: "ACT-Bench", note: "Strong-looking driving videos can still fail to obey the requested trajectory.", grade: "A-", url: "https://arxiv.org/abs/2412.05337" }
+
+      - name: "Evaluation — realism is not dynamics"
+        sections:
+          - heading: "Measure the contract in layers"
+            notes:
+              - text: "Frame-quality metrics reward texture and appearance but are insensitive to whether objects obey contact, conservation, or a requested action. Models can improve perceptually while remaining unreliable for control."
+              - text: "Evaluation should move through layers: perceptual quality, temporal consistency, physical or structural validity, action fidelity, and finally closed-loop task success. Collapsing them into one score hides the failure that matters."
+              - text: "Open-loop evaluation can be accidentally gamed. A generator may produce a plausible recovery after an impossible action, making the video coherent while returning a false positive for the policy being tested."
+              - text: "The strongest recent result is that improving the action-conditioned stage can matter more than replacing the underlying video generator. Better visual priors help, but controllability is often the true bottleneck."
+            papers:
+              - { year: 2025, title: "World-in-World", note: "The strongest current evidence that video quality is a poor proxy for closed-loop utility.", grade: "A", url: "https://arxiv.org/abs/2510.18135", featured: true, tags: ["★"] }
+              - { year: 2025, title: "Evaluating Robot Policies in a World Model", note: "Gives world-model policy-evaluation error a direction, not only an aggregate correlation.", grade: "A-", url: "https://arxiv.org/abs/2506.00613", featured: true }
+              - { year: 2026, title: "dWorldEval", note: "Makes the proposed action explicit and checks whether consequences remain faithful.", grade: "B+", url: "https://arxiv.org/abs/2604.22152" }
+              - { year: 2024, title: "ACT-Bench", note: "A focused demonstration that action compliance deserves its own metric.", grade: "A-", url: "https://arxiv.org/abs/2412.05337" }
+              - { year: 2025, title: "WorldModelBench", note: "Broad coverage of instruction and physics violations, one layer below closed-loop success.", grade: "B+", url: "https://arxiv.org/abs/2502.20694" }
 
   - name: "Topic 4 · Diffusion LLMs"
-    papers: []
+    intro: >
+      Autoregressive models make one irreversible local decision at a time. Diffusion
+      language models begin with an uncertain sequence and repeatedly reveal or revise it.
+      That creates genuine options—parallel token proposals, flexible order, and correction—
+      while giving up conveniences on which modern LLM systems rely: a unique left-to-right
+      likelihood, a mature KV cache, and a simple RL trajectory. The useful question is not
+      whether diffusion wins in the abstract, but which factorization wins at a particular
+      point on the quality, latency, compute, and controllability frontier.
+    subtopics:
+      - name: "From masking to a generative model"
+        sections:
+          - heading: "Masked diffusion is generative masked-language modeling"
+            notes:
+              - text: "In absorbing-state diffusion, each clean token survives with probability αₜ and otherwise becomes a mask. Increasing t erases information until the sequence is almost entirely blank:"
+                display: "q(zₜⁱ | xᵢ) = αₜ 1[zₜⁱ = xᵢ] + (1 − αₜ) 1[zₜⁱ = MASK]"
+              - text: "The reverse model sees a partially masked sequence and predicts every missing original token. Training resembles masked-language modeling, but it spans all noise levels and defines a consistent path from complete uncertainty to a complete sample."
+                display: "L_MDLM = Eₜ,x,zₜ [ w(t) Σᵢ:zₜⁱ=MASK −log pθ(xᵢ | zₜ, t) ]"
+              - text: "Sampling starts from masks, predicts all blank positions, commits some tokens, and repeats. Bidirectional context is the conceptual advantage: a token may use decisions on both sides. The price is that each pass attends over much more sequence than one cached autoregressive step."
+              - text: "Ordinary BERT filling is therefore the right intuition but the wrong endpoint. What makes the system generative is the learned family of denoisers and a sampler that traverses noise levels."
+            image: "/assets/img/reading_list/diffusion_generation.svg"
+            image_width: 860
+            image_alt: "Autoregressive generation commits one token per serial step, while masked diffusion repeatedly updates a block of uncertain positions."
+            image_caption: "Parallel proposals reduce serial decisions; they do not automatically reduce total computation or wall-clock latency."
+            papers:
+              - { year: 2021, title: "Structured Denoising Diffusion Models in Discrete State-Spaces", note: "The discrete-diffusion foundation; important, though not the easiest first read.", grade: "B+", url: "https://arxiv.org/abs/2107.03006" }
+              - { year: 2023, title: "SEDD", note: "Replaces awkward reverse probabilities with a score-entropy objective.", grade: "A-", url: "https://arxiv.org/abs/2310.16834" }
+              - { year: 2024, title: "Simple and Effective Masked Diffusion Language Models", note: "The core masked-diffusion derivation and best technical starting paper.", grade: "A", url: "https://arxiv.org/abs/2406.07524", featured: true, tags: ["★"] }
+              - { year: 2025, title: "LLaDA", note: "A broadly convincing open demonstration that masked diffusion scales to an 8B general language model.", grade: "A-", url: "https://arxiv.org/abs/2502.09992", featured: true }
+              - { year: 2026, title: "How to Build a Diffusion Language Model", note: "The best current engineering map from the forward process to architecture, sampling, and post-training.", grade: "A", url: "https://kuleshov-group.github.io/blog/blog/2026/how-to-build-a-diffusion-language-model/", featured: true, tags: ["★"] }
+
+          - heading: "Masks, random corruption, and remasking"
+            notes:
+              - text: "Absorbing masks identify exactly which positions are uncertain. That makes the target clean and efficient, but a revealed token is usually treated as final; sampling needs explicit remasking to reopen an early mistake."
+              - text: "Uniform diffusion replaces tokens with random vocabulary items. Every location may remain uncertain and can be corrected naturally, but the network cannot tell whether a plausible-looking token is clean or corrupted."
+                display: "q(zₜⁱ | xᵢ) = αₜ δ(xᵢ) + (1 − αₜ) Uniform(V)"
+              - text: "The choice changes posterior parameterization, sampler stability, guidance, distillation, and cache approximations. “Diffusion LLM” is not one algorithm with one scaling curve."
+              - text: "Remasking narrows the practical gap: confidence or a learned policy can reopen questionable tokens, gaining inference-time correction without adopting random-token corruption everywhere."
+            papers:
+              - { year: 2024, title: "Simple and Effective Masked Diffusion Language Models", note: "The reference for why absorbing masks yield a simple objective.", grade: "A", url: "https://arxiv.org/abs/2406.07524", featured: true }
+              - { year: 2025, title: "ReMDM: Remasking Discrete Diffusion Models", note: "Exposes irreversible commitment as a sampler choice.", grade: "A-", url: "https://arxiv.org/abs/2503.00307" }
+              - { year: 2024, title: "Simple Guidance Mechanisms for Discrete Diffusion Models", note: "A compact account of conditional control in discrete denoising.", grade: "A-", url: "https://arxiv.org/abs/2412.10193" }
+              - { year: 2025, title: "The Diffusion Duality", note: "A uniform-diffusion counterpoint and route toward few-step consistency generation.", grade: "A-", url: "https://arxiv.org/abs/2506.10892" }
+              - { year: 2026, title: "Scaling Beyond Masked Diffusion Language Models", note: "The paper to read before claiming that one noise process is categorically superior.", grade: "A", url: "https://arxiv.org/abs/2602.15014", featured: true, tags: ["★"] }
+
+      - name: "Building a usable diffusion LLM"
+        sections:
+          - heading: "Blocks are the practical compromise"
+            notes:
+              - text: "Full-sequence diffusion does not naturally know the response length. Padding to a fixed canvas wastes compute, while pure autoregression handles length elegantly but gives up parallel denoising."
+              - text: "Block diffusion factorizes autoregressively across blocks and diffuses inside the active block. A one-token block recovers autoregression; a sequence-sized block recovers full diffusion, making block size a systems knob rather than an ideological choice."
+                display: "p(x₁:L) = ∏ᵦ pθ(x_Bᵦ | x_B<ᵦ)"
+              - text: "Completed blocks can use a KV cache while unresolved positions attend bidirectionally inside the current block. This restores length flexibility and much of the serving infrastructure that full diffusion discards."
+              - text: "The compromise limits correction: tokens may be revised inside the active block but become fixed context after the frontier advances. Large blocks buy parallelism and reconsideration; small blocks reduce work and stabilize long-form generation."
+            papers:
+              - { year: 2025, title: "Block Diffusion", note: "The clearest bridge between diffusion parallelism and autoregressive serving.", grade: "A", url: "https://arxiv.org/abs/2503.09573", featured: true, tags: ["★"] }
+              - { year: 2025, title: "LLaDA", note: "The full-sequence scaled baseline against which blockwise compromises should be read.", grade: "A-", url: "https://arxiv.org/abs/2502.09992" }
+              - { year: 2025, title: "Dream 7B", note: "A scaled recipe combining autoregressive initialization with adaptive corruption.", grade: "A-", url: "https://arxiv.org/abs/2508.15487" }
+              - { year: 2026, title: "DiffusionGemma Model Card", note: "Its block architecture and explicit quality caveats make it unusually useful production evidence.", grade: "B+", url: "https://ai.google.dev/gemma/docs/diffusiongemma/model_card" }
+              - { year: 2026, title: "Nemotron Labs Diffusion", note: "A tri-mode model supporting autoregressive, diffusion, and speculative hybrid operation.", grade: "A-", url: "https://research.nvidia.com/publication/2026-05_nemotron-labs-diffusion-tri-mode-language-model-unifying-autoregressive" }
+
+          - heading: "Parallel tokens per pass are not tokens per second"
+            notes:
+              - text: "If S denoising passes produce L tokens, the sampler appears to generate L/S useful tokens per pass. That is algorithmically meaningful, but a pass over a bidirectional block is far more expensive than one cached autoregressive step."
+                display: "latency ≈ S × cost(one full-sequence or active-block pass)"
+              - text: "A credible speed comparison must hold model size, hardware, precision, context, output length, batch, cache policy, and output quality reasonably fixed. Removing steps can improve latency while deleting the reasoning tokens a benchmark rewards."
+              - text: "KV caching is hard because unresolved tokens change between iterations and invalidate states that attended to them. Approximate caches can work when representations move slowly, but error may accumulate or interact with remasking."
+              - text: "Distillation attacks the other side by learning a few larger denoising transitions. The plausible endpoint is a useful quality–throughput frontier, not universally one-step generation."
+            papers:
+              - { year: 2026, title: "Scaling Beyond Masked Diffusion Language Models", note: "The most careful compute study: different objectives win different parts of the speed–quality frontier.", grade: "A", url: "https://arxiv.org/abs/2602.15014", featured: true, tags: ["★"] }
+              - { year: 2025, title: "The Diffusion Duality", note: "Makes few-step consistency generation concrete.", grade: "A-", url: "https://arxiv.org/abs/2506.10892" }
+              - { year: 2025, title: "Fast-dLLM", note: "Combines approximate KV caching with more aggressive parallel decoding.", grade: "B+", url: "https://arxiv.org/abs/2505.22618" }
+              - { year: 2025, title: "dKV-Cache", note: "Focused systems work on cache invalidation across denoising steps.", grade: "B", url: "https://arxiv.org/abs/2505.15781" }
+              - { year: 2025, title: "Mercury", note: "Important throughput evidence for diffusion coding models; quality parity remains comparison-dependent.", grade: "B+", url: "https://arxiv.org/abs/2506.17298" }
+
+      - name: "Post-training and reasoning"
+        sections:
+          - heading: "Likelihood is the hard part"
+            notes:
+              - text: "Autoregression gives a response one left-to-right factorization. Diffusion can reach the same response through many reveal, corruption, and remasking trajectories, so “the probability of this answer” involves a combinatorial latent path."
+              - text: "Supervised tuning remains straightforward: corrupt target responses and train the denoising objective while conditioning on prompts. Preference optimization and RL are harder because a policy ratio or advantage must be assigned to denoising actions with ambiguous final contribution."
+              - text: "Current methods use masked supervised losses, approximate trajectory likelihoods, or estimators sampling pieces of the reverse process. Estimator bias and variance are part of the algorithm, not incidental implementation noise."
+              - text: "Guidance offers simpler conditional control by mixing conditional and unconditional reverse predictions. It can strengthen adherence before full RL, although too much guidance reduces diversity and can amplify model mistakes."
+                display: "log pγ(zₛ | zₜ, y) = γ log p(zₛ | zₜ, y) + (1 − γ) log p(zₛ | zₜ) + C"
+            papers:
+              - { year: 2025, title: "d1: Scaling Reasoning in Diffusion LLMs via Reinforcement Learning", note: "The first persuasive diffusion-specific RL reasoning result.", grade: "A-", url: "https://arxiv.org/abs/2504.12216", featured: true, tags: ["★"] }
+              - { year: 2025, title: "d2: Direct Diffusion Language Model Alignment", note: "Improves likelihood estimation and exposes alignment as a trajectory problem.", grade: "A-", url: "https://arxiv.org/abs/2509.21474" }
+              - { year: 2024, title: "Simple Guidance Mechanisms for Discrete Diffusion Models", note: "Conditional control before reaching for full reinforcement learning.", grade: "A-", url: "https://arxiv.org/abs/2412.10193" }
+              - { year: 2025, title: "LLaDA", note: "Instruction tuning shows that supervised adaptation transfers more easily than RL.", grade: "A-", url: "https://arxiv.org/abs/2502.09992" }
+              - { year: 2026, title: "How to Build a Diffusion Language Model", note: "The clearest map of the fragmented post-training literature.", grade: "A", url: "https://kuleshov-group.github.io/blog/blog/2026/how-to-build-a-diffusion-language-model/", featured: true }
+
+          - heading: "Any-order generation is a policy, not a free lunch"
+            notes:
+              - text: "A denoiser may choose which token to finalize next. This is often described as “thinking in any order,” but architectural permission does not imply that training discovers a useful reasoning order."
+              - text: "Confidence-first decoding can skip uncertain intermediate reasoning and commit an answer supported by superficial cues. Flexible order may reduce sample diversity when many trajectories collapse onto the same premature conclusion."
+              - text: "The counterexample is real: when required output order conflicts with natural reasoning order, bidirectional refinement can stabilize hidden reasoning fields before it commits the answer field."
+              - text: "Recent evidence favors gated flexibility: keep positions revisable until prerequisite evidence exists, or constrain the commitment frontier during reasoning. The schedule is task-dependent and should be learned or validated."
+            papers:
+              - { year: 2026, title: "The Flexibility Trap", note: "Arbitrary-order decoding can route around hard reasoning tokens and reduce useful diversity.", grade: "A", url: "https://arxiv.org/abs/2601.15165", featured: true, tags: ["★"] }
+              - { year: 2026, title: "Thinking Out of Order", note: "Strong gains when presentation order and reasoning order deliberately conflict.", grade: "A-", url: "https://arxiv.org/abs/2601.22035", featured: true }
+              - { year: 2026, title: "Answer First, Reason Later", note: "Very recent evidence for frontier-gated commitment; treat conclusions as provisional.", grade: "B+", url: "https://arxiv.org/abs/2608.05687" }
+              - { year: 2026, title: "A3: Any-Order Autoregressive Language Modeling", note: "An important control: flexible ordering is not exclusive to diffusion.", grade: "B+", url: "https://arxiv.org/abs/2601.13228" }
+              - { year: 2025, title: "A2D: Any-to-Any Diffusion Language Models and Safety", note: "Extra generation paths also create new attack and control surfaces.", grade: "B", url: "https://arxiv.org/abs/2509.23286" }
+
+      - name: "What scaled systems establish"
+        sections:
+          - heading: "The likely endpoint is hybrid"
+            notes:
+              - text: "LLaDA established a serious general-purpose diffusion model; Dream showed that autoregressive initialization can reduce the scaling burden; Mercury and Seed demonstrated high throughput in narrower regimes. None establishes universal superiority."
+              - text: "DiffusionGemma is instructive because its public material states both coordinates: faster generation in the target setup and lower quality than the standard Gemma family. That is more useful than a speed headline with no quality coordinate."
+              - text: "Tri-mode systems suggest a pragmatic endpoint. The same weights may decode autoregressively for difficult tokens, diffuse a block when parallelism matters, or draft with diffusion and verify autoregressively."
+              - text: "Perplexity is not sufficient across factorization families. A diffusion objective can require more training compute for likelihood yet do well on reasoning or at high serving throughput. Choose against the metric and SLO the application actually pays for."
+            papers:
+              - { year: 2025, title: "LLaDA", note: "The foundational scaled open diffusion LM.", grade: "A-", url: "https://arxiv.org/abs/2502.09992", featured: true, tags: ["★"] }
+              - { year: 2025, title: "Dream 7B", note: "Autoregressive checkpoints can be converted instead of always training diffusion from zero.", grade: "A-", url: "https://arxiv.org/abs/2508.15487" }
+              - { year: 2025, title: "Mercury", note: "A commercially relevant speed point, not a blanket frontier-quality victory.", grade: "B+", url: "https://arxiv.org/abs/2506.17298" }
+              - { year: 2026, title: "DiffusionGemma", note: "A consequential block-diffusion release with unusually explicit quality caveats.", grade: "B+", url: "https://blog.google/innovation-and-ai/technology/developers-tools/diffusion-gemma-faster-text-generation/" }
+              - { year: 2026, title: "Nemotron Labs Diffusion", note: "The clearest current evidence for one model choosing its factorization at inference time.", grade: "A-", url: "https://research.nvidia.com/publication/2026-05_nemotron-labs-diffusion-tri-mode-language-model-unifying-autoregressive", featured: true }
+              - { year: 2026, title: "Scaling Beyond Masked Diffusion Language Models", note: "Compare Pareto frontiers across compute and throughput, not one benchmark column.", grade: "A", url: "https://arxiv.org/abs/2602.15014", featured: true, tags: ["★"] }
 
   - name: "Others"
-    papers: []
+    intro: >
+      This section is intentionally not a miscellaneous drawer. Modern models are often
+      easier to improve than to measure, so it collects three questions that cut across
+      language models, world models, and agents: whether a benchmark still measures what
+      it claims, whether an automated judge is a trustworthy instrument, and whether a
+      system knows when its answer should be withheld.
+    subtopics:
+      - name: "Evaluation that survives training"
+        sections:
+          - heading: "A score belongs to a pipeline and a date"
+            notes:
+              - text: "A benchmark result belongs to a model, prompt template, decoding procedure, tool configuration, scorer, and evaluation date—not to the weights alone. Reporting only the number hides reproducibility details and how quickly a public task becomes training data."
+              - text: "Dynamic benchmarks shorten the window for contamination by adding newly released, objectively scored problems. They do not make contamination impossible; they make provenance and timestamps first-class metadata."
+              - text: "Human pairwise preference measures a different target from factual or task accuracy. Arena rankings are useful for product preference, but the prompt population, rater population, presentation, latency, and verbosity all affect the result."
+              - text: "A defensible suite mixes frozen diagnostic tasks, fresh verifiable tasks, and human preference. Agreement across these views is stronger evidence than another decimal place on one leaderboard."
+            papers:
+              - { year: 2022, title: "HELM", note: "The durable lesson is multidimensional reporting: capability alone is an incomplete measurement.", grade: "B+", url: "https://arxiv.org/abs/2211.09110" }
+              - { year: 2024, title: "LiveBench", note: "A strong template for frequently refreshed evaluation with objective ground truth.", grade: "A-", url: "https://arxiv.org/abs/2406.19314", featured: true, tags: ["★"] }
+              - { year: 2024, title: "LiveCodeBench", note: "Coding suits dynamic evaluation because problems can be dated and answers executed.", grade: "B+", url: "https://arxiv.org/abs/2403.07974" }
+              - { year: 2024, title: "Chatbot Arena", note: "A powerful preference instrument that should not be reinterpreted as truthfulness or reasoning accuracy.", grade: "A-", url: "https://arxiv.org/abs/2403.04132", featured: true }
+
+          - heading: "Judges are instruments, not oracles"
+            notes:
+              - text: "LLM judges offer scale and rubric-based feedback, but show position bias, verbosity preference, self-preference, and sensitivity to framing. Calling a judge stronger than the candidate does not remove systematic error."
+              - text: "Pairwise ranking often assumes a Bradley–Terry model, but the inferred score describes preference under the sampled prompts, judge, and presentation protocol. It is not context-free quality."
+                display: "P(i ≻ j) = σ(sᵢ − sⱼ)"
+              - text: "Treat an automated judge like a measurement device: calibrate on a human-reviewed slice, swap response order, hide model identity, use task-specific rubrics, and report disagreement. A judge should be allowed to abstain."
+              - text: "More judge calls are not automatically better than trusted human labels. When the judge is systematically worse than the systems it evaluates, cheap automation can amplify bias faster than it reduces variance."
+            papers:
+              - { year: 2023, title: "Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena", note: "Foundational because it documents both surprising utility and characteristic biases.", grade: "A", url: "https://arxiv.org/abs/2306.05685", featured: true, tags: ["★"] }
+              - { year: 2024, title: "Self-Preference Bias in LLM-as-a-Judge", note: "Shared model family or style can leak into supposedly neutral evaluation.", grade: "B+", url: "https://arxiv.org/abs/2410.21819" }
+              - { year: 2025, title: "The Limits of Scalable Oversight and Automated Evaluation", note: "A sharp argument against assuming cheap judge labels dominate a smaller trusted sample.", grade: "A-", url: "https://proceedings.iclr.cc/paper_files/paper/2025/hash/4264ee4376776907c0b87ed70b959585-Abstract-Conference.html", featured: true }
+              - { year: 2025, title: "RewardBench 2", note: "Tests whether preference models capture harder downstream distinctions.", grade: "B+", url: "https://arxiv.org/abs/2506.01937" }
+
+      - name: "Knowing when not to answer"
+        sections:
+          - heading: "Confidence, abstention, and explicit guarantees"
+            notes:
+              - text: "Accuracy and calibration are different. If a calibrated system reports probability p, it should be correct about a fraction p of the time among similarly scored cases. A less accurate but calibrated system can be safer when a product may abstain."
+                display: "P(correct | p̂ ≈ p) ≈ p"
+              - text: "A proper score such as Brier loss penalizes both confident error and unjustified timidity. Accuracy alone cannot distinguish a careful 60% forecast from a reckless 99% forecast."
+                display: "Brier score = (p − y)²"
+              - text: "Semantic entropy samples answers, groups meaning-equivalent outputs, and measures uncertainty across those groups. It detects unstable guessing better than token entropy, but cannot catch a model that is consistently confident in one misconception."
+                display: "H_sem(x) = −Σc p(c | x) log p(c | x)"
+              - text: "Abstention should be chosen on a risk–coverage curve. Asking “are you sure?” is not a safety mechanism; selecting a threshold against an acceptable empirical risk is."
+                display: "coverage(τ) = P(c ≥ τ),      risk(τ) = E[loss | c ≥ τ]"
+              - text: "Conformal methods can promise that an answer set contains the truth with a chosen marginal probability under exchangeability. The guarantee is valuable because it is explicit, and limited because deployment shift can violate the assumption."
+                display: "P{Y ∈ Cα(X)} ≥ 1 − α"
+            papers:
+              - { year: 2024, title: "Detecting Hallucinations in Large Language Models Using Semantic Entropy", note: "The strongest practical idea for uncertainty over meanings rather than surface strings.", grade: "A", url: "https://www.nature.com/articles/s41586-024-07421-0", featured: true, tags: ["★"] }
+              - { year: 2023, title: "Can LLMs Express Their Uncertainty?", note: "Verbalized confidence is overconfident and sensitive to how it is elicited.", grade: "A-", url: "https://arxiv.org/abs/2306.13063" }
+              - { year: 2024, title: "Conformal Language Modeling", note: "Turns abstention and generation sets into an explicit statistical coverage problem.", grade: "A-", url: "https://openreview.net/forum?id=pzUhfQ74c5", featured: true }
+              - { year: 2024, title: "Enhanced Conformal Prediction for LLMs", note: "Extensions that make conformal sets less blunt for language tasks.", grade: "B+", url: "https://arxiv.org/abs/2406.09714" }
+              - { year: 2026, title: "ConfidenceBench", note: "A recent reminder that model rankings by accuracy and calibration can diverge.", grade: "B+", url: "https://arxiv.org/abs/2607.20526" }
+              - { year: 2024, title: "Larger and More Instructable Language Models Become Less Reliable", note: "Smoother instruction following can conceal rather than eliminate confident failure.", grade: "B+", url: "https://www.nature.com/articles/s41586-024-07930-y" }
